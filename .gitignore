@@ -48,3 +48,5 @@ pids/
 # FFmpeg.wasm files (large binary files)
 public/static/ffmpeg/*.wasm
 public/static/ffmpeg/*.js
+public/static/ffmpeg.js
+public/static/ffmpeg-util.js
