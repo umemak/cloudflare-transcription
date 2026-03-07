@@ -18,10 +18,8 @@
       "database_name": "webapp-production",
       "database_id": ""
     }
-  ]
-  // AI binding requires Cloudflare API token
-  // Uncomment for production deployment:
-  // "ai": {
-  //   "binding": "AI"
-  // }
+  ],
+  "ai": {
+    "binding": "AI"
+  }
 }

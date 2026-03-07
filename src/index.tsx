@@ -5,7 +5,7 @@ import { renderer } from './renderer'
 type Bindings = {
   DB: D1Database
   AUDIO_BUCKET: R2Bucket
-  AI?: Ai  // Optional for local development
+  AI: Ai
 }
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -76,11 +76,6 @@ app.post('/api/transcribe', async (c) => {
 
     // Perform transcription using Cloudflare AI
     try {
-      // Check if AI is available
-      if (!c.env.AI) {
-        throw new Error('AI service is not available in local development. Deploy to production to use AI transcription.')
-      }
-
       // Convert ArrayBuffer to Uint8Array for AI API
       const audioData = new Uint8Array(arrayBuffer)
       
