@@ -246,20 +246,44 @@ document.getElementById('uploadBtn')?.addEventListener('click', async () => {
         statusDiv.innerHTML = `<p class="info">${chunks.length}個のチャンクに分割しました。処理中...</p>`
       }
       
+      // 最初のチャンクでR2にオリジナルファイルを保存
+      const firstFormData = new FormData()
+      firstFormData.append('audio', file) // オリジナルファイル
+      firstFormData.append('language', language)
+      firstFormData.append('is_chunked', 'true') // チャンク処理フラグ
+      
+      if (statusDiv) {
+        statusDiv.innerHTML = `<p class="info">音声ファイルを保存中...</p>`
+      }
+      
+      const uploadResponse = await fetch('/api/transcribe', {
+        method: 'POST',
+        body: firstFormData
+      })
+      
+      const uploadData = await uploadResponse.json()
+      
+      if (!uploadResponse.ok) {
+        throw new Error(uploadData.error || '音声ファイルの保存に失敗しました')
+      }
+      
+      const transcriptionId = uploadData.id
       const transcripts = []
       
+      // 各チャンクを順次文字起こし
       for (let i = 0; i < chunks.length; i++) {
         if (statusDiv) {
           statusDiv.innerHTML = `<p class="info">チャンク ${i + 1}/${chunks.length} を処理中...</p>`
         }
         
-        const formData = new FormData()
-        formData.append('audio', chunks[i], `chunk_${i}.wav`)
-        formData.append('language', language)
+        const chunkFormData = new FormData()
+        chunkFormData.append('audio', chunks[i], `chunk_${i}.wav`)
+        chunkFormData.append('language', language)
+        chunkFormData.append('chunk_only', 'true') // チャンクのみ処理
         
         const response = await fetch('/api/transcribe', {
           method: 'POST',
-          body: formData
+          body: chunkFormData
         })
         
         const data = await response.json()
@@ -272,6 +296,15 @@ document.getElementById('uploadBtn')?.addEventListener('click', async () => {
       }
       
       const fullTranscript = transcripts.join(' ')
+      
+      // 完全な文字起こし結果を元のレコードに保存
+      const updateFormData = new FormData()
+      updateFormData.append('transcript', fullTranscript)
+      
+      await fetch(`/api/transcriptions/${transcriptionId}/update`, {
+        method: 'POST',
+        body: updateFormData
+      })
       
       if (statusDiv) {
         statusDiv.innerHTML = `

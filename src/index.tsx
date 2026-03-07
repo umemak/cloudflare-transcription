@@ -61,9 +61,34 @@ app.post('/api/transcribe', async (c) => {
     const formData = await c.req.formData()
     const audioFile = formData.get('audio') as File
     const language = formData.get('language') as string || 'ja'  // デフォルトは日本語
+    const isChunked = formData.get('is_chunked') === 'true'  // チャンク処理フラグ
+    const chunkOnly = formData.get('chunk_only') === 'true'  // チャンクのみ処理フラグ
     
     if (!audioFile) {
       return c.json({ error: 'No audio file provided' }, 400)
+    }
+    
+    // チャンクのみ処理（DBに保存せず、文字起こしのみ実行）
+    if (chunkOnly) {
+      try {
+        const arrayBuffer = await audioFile.arrayBuffer()
+        const audioData = new Uint8Array(arrayBuffer)
+        
+        const aiResponse = await c.env.AI.run('@cf/openai/whisper-large-v3-turbo', {
+          audio: [...audioData]
+        })
+        
+        return c.json({
+          status: 'completed',
+          transcript: aiResponse.text || ''
+        })
+      } catch (aiError) {
+        const errorMessage = aiError instanceof Error ? aiError.message : 'Unknown error'
+        return c.json({
+          status: 'failed',
+          error: errorMessage
+        }, 500)
+      }
     }
 
     // Generate unique key for R2
@@ -80,14 +105,24 @@ app.post('/api/transcribe', async (c) => {
     })
 
     // Insert record into D1
+    const initialStatus = isChunked ? 'processing' : 'processing'
     const result = await c.env.DB.prepare(`
       INSERT INTO transcriptions (audio_file_key, audio_file_name, audio_file_size, status)
-      VALUES (?, ?, ?, 'processing')
-    `).bind(fileKey, audioFile.name, audioFile.size).run()
+      VALUES (?, ?, ?, ?)
+    `).bind(fileKey, audioFile.name, audioFile.size, initialStatus).run()
 
     const transcriptionId = result.meta.last_row_id
 
-    // Perform transcription using Cloudflare AI
+    // チャンク処理の場合は、ここでは文字起こしせず、IDだけ返す
+    if (isChunked) {
+      return c.json({
+        id: transcriptionId,
+        status: 'processing',
+        message: 'Audio file uploaded. Processing chunks...'
+      })
+    }
+
+    // 通常の処理（小さなファイル）: 文字起こしを実行
     try {
       const audioData = new Uint8Array(arrayBuffer)
       
@@ -253,6 +288,33 @@ app.get('/api/transcriptions/:id', async (c) => {
     return c.json(result)
   } catch (error) {
     console.error('Get transcription error:', error)
+    return c.json({
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, 500)
+  }
+})
+
+// API: Update transcription with final transcript
+app.post('/api/transcriptions/:id/update', async (c) => {
+  try {
+    const id = c.req.param('id')
+    const formData = await c.req.formData()
+    const transcript = formData.get('transcript') as string
+    
+    if (!transcript) {
+      return c.json({ error: 'No transcript provided' }, 400)
+    }
+    
+    // Update the transcription record
+    await c.env.DB.prepare(`
+      UPDATE transcriptions 
+      SET transcript_text = ?, status = 'completed', updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(transcript, id).run()
+    
+    return c.json({ success: true })
+  } catch (error) {
+    console.error('Update transcription error:', error)
     return c.json({
       error: error instanceof Error ? error.message : 'Unknown error'
     }, 500)
