@@ -12,10 +12,12 @@ document.getElementById('uploadBtn')?.addEventListener('click', async () => {
   const languageSelect = document.getElementById('language')
   const language = languageSelect ? languageSelect.value : 'ja'
   
-  // 警告: 大きなファイルの場合
+  // ファイルサイズの計算
   const fileSizeMB = file.size / (1024 * 1024)
-  if (fileSizeMB > 1) {
-    if (!confirm(`ファイルサイズが ${fileSizeMB.toFixed(2)} MB です。大きなファイルや長い音声の文字起こしは失敗する可能性があります。続行しますか？`)) {
+  
+  // 大きなファイルの場合は情報を表示
+  if (fileSizeMB > 2) {
+    if (!confirm(`ファイルサイズが ${fileSizeMB.toFixed(2)} MB です。大きなファイルは自動的に分割して処理されますが、時間がかかる場合があります。続行しますか？`)) {
       return
     }
   }
@@ -24,7 +26,10 @@ document.getElementById('uploadBtn')?.addEventListener('click', async () => {
   formData.append('audio', file)
   formData.append('language', language)
 
-  if (statusDiv) statusDiv.innerHTML = '<p class="info">アップロード中...</p>'
+  if (statusDiv) {
+    const sizeInfo = fileSizeMB > 1 ? `（${fileSizeMB.toFixed(2)} MB - 処理に時間がかかる場合があります）` : ''
+    statusDiv.innerHTML = `<p class="info">アップロード中... ${sizeInfo}</p>`
+  }
 
   try {
     const response = await fetch('/api/transcribe', {

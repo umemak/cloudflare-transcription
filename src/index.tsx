@@ -89,17 +89,64 @@ app.post('/api/transcribe', async (c) => {
 
     // Perform transcription using Cloudflare AI
     try {
-      const aiResponse = await c.env.AI.run('@cf/openai/whisper', {
-        audio: [...new Uint8Array(arrayBuffer)],
-        source_lang: language  // source_langパラメータを使用
-      })
-
-      const transcriptText = aiResponse.text || ''
+      const audioData = new Uint8Array(arrayBuffer)
+      
+      // 音声ファイルのサイズをチェック（1MB = 1,048,576バイト）
+      const CHUNK_SIZE = 1 * 1024 * 1024 // 1MB
+      const needsChunking = audioData.length > CHUNK_SIZE
+      
+      let transcriptText = ''
+      
+      if (needsChunking) {
+        // 大きなファイル: チャンクに分割して処理
+        const chunks: Uint8Array[] = []
+        for (let i = 0; i < audioData.length; i += CHUNK_SIZE) {
+          const chunk = audioData.slice(i, i + CHUNK_SIZE)
+          chunks.push(chunk)
+        }
+        
+        // 各チャンクを順次処理
+        const transcripts: string[] = []
+        for (let i = 0; i < chunks.length; i++) {
+          try {
+            const chunkResponse = await c.env.AI.run('@cf/openai/whisper', {
+              audio: [...chunks[i]],
+              source_lang: language
+            })
+            
+            if (chunkResponse.text) {
+              transcripts.push(chunkResponse.text)
+            }
+            
+            // 進捗を更新（オプション）
+            const progress = Math.round(((i + 1) / chunks.length) * 100)
+            await c.env.DB.prepare(`
+              UPDATE transcriptions 
+              SET error_message = ?, updated_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+            `).bind(`処理中: ${progress}%`, transcriptionId).run()
+            
+          } catch (chunkError) {
+            console.error(`Chunk ${i + 1}/${chunks.length} error:`, chunkError)
+            transcripts.push(`[チャンク ${i + 1} エラー]`)
+          }
+        }
+        
+        transcriptText = transcripts.join(' ')
+        
+      } else {
+        // 小さなファイル: 一度に処理
+        const aiResponse = await c.env.AI.run('@cf/openai/whisper', {
+          audio: [...audioData],
+          source_lang: language
+        })
+        transcriptText = aiResponse.text || ''
+      }
 
       // Update with transcription result
       await c.env.DB.prepare(`
         UPDATE transcriptions 
-        SET transcript_text = ?, status = 'completed', updated_at = CURRENT_TIMESTAMP
+        SET transcript_text = ?, status = 'completed', error_message = NULL, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `).bind(transcriptText, transcriptionId).run()
 
