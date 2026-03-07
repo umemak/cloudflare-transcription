@@ -12,7 +12,8 @@ async function loadFFmpeg() {
     
     ffmpegInstance = new FFmpeg()
     
-    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd'
+    // jsdelivrを使用（CORSに対応）
+    const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd'
     await ffmpegInstance.load({
       coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
       wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm')
@@ -226,24 +227,30 @@ document.getElementById('uploadBtn')?.addEventListener('click', async () => {
   try {
     // 大きなファイルの場合は30秒ごとに分割
     if (fileSizeMB > 1) {
-      if (!confirm(`ファイルサイズが ${fileSizeMB.toFixed(2)} MB です。FFmpeg.wasmを使って30秒ごとに分割して処理します。続行しますか？`)) {
+      if (!confirm(`ファイルサイズが ${fileSizeMB.toFixed(2)} MB です。30秒ごとに分割して処理します。続行しますか？\n\n処理時間: 約${Math.ceil(fileSizeMB / 0.2)}分`)) {
         return
       }
       
-      if (statusDiv) statusDiv.innerHTML = `<p class="info">FFmpeg.wasmを読み込み中...</p>`
-      
       let chunks
+      let usedFFmpeg = false
+      
+      // まずFFmpeg.wasmを試す（無音検出分割）
       try {
-        // FFmpeg.wasmを使った分割を試行
+        if (statusDiv) statusDiv.innerHTML = `<p class="info">高度な音声分割を試行中...</p>`
         chunks = await splitAudioBySilence(file, -40, 0.5)
+        usedFFmpeg = true
+        console.log('Using FFmpeg.wasm for silence-based splitting')
       } catch (ffmpegError) {
-        console.warn('FFmpeg.wasm failed, falling back to Web Audio API:', ffmpegError)
-        if (statusDiv) statusDiv.innerHTML = `<p class="info">Web Audio APIで分割中...</p>`
-        chunks = await splitAudioByTime(file, 30) // フォールバック
+        // FFmpegが失敗したらWeb Audio APIにフォールバック
+        console.warn('FFmpeg.wasm failed, using Web Audio API fallback:', ffmpegError)
+        if (statusDiv) statusDiv.innerHTML = `<p class="info">音声を時間ベースで分割中...</p>`
+        chunks = await splitAudioByTime(file, 30)
+        console.log('Using Web Audio API for time-based splitting')
       }
       
       if (statusDiv) {
-        statusDiv.innerHTML = `<p class="info">${chunks.length}個のチャンクに分割しました。処理中...</p>`
+        const method = usedFFmpeg ? '無音検出' : '時間ベース'
+        statusDiv.innerHTML = `<p class="info">${chunks.length}個のチャンクに分割しました（${method}）。処理中...</p>`
       }
       
       // 最初のチャンクでR2にオリジナルファイルを保存
