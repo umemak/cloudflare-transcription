@@ -93,20 +93,29 @@ app.post('/api/transcribe', async (c) => {
       
       // 音声ファイルのサイズをチェック（1MB = 1,048,576バイト）
       const CHUNK_SIZE = 1 * 1024 * 1024 // 1MB
+      const OVERLAP_SIZE = 128 * 1024 // 128KB オーバーラップ（約5-10秒相当）
       const needsChunking = audioData.length > CHUNK_SIZE
       
       let transcriptText = ''
       
       if (needsChunking) {
-        // 大きなファイル: チャンクに分割して処理
+        // 大きなファイル: オーバーラップを含めてチャンクに分割
         const chunks: Uint8Array[] = []
         for (let i = 0; i < audioData.length; i += CHUNK_SIZE) {
-          const chunk = audioData.slice(i, i + CHUNK_SIZE)
+          // オーバーラップを考慮（最初のチャンク以外）
+          const start = i > 0 ? Math.max(0, i - OVERLAP_SIZE) : 0
+          const end = Math.min(audioData.length, i + CHUNK_SIZE)
+          const chunk = audioData.slice(start, end)
           chunks.push(chunk)
+          
+          // 最後のチャンクに到達したら終了
+          if (end >= audioData.length) break
         }
         
         // 各チャンクを順次処理
         const transcripts: string[] = []
+        let previousText = ''
+        
         for (let i = 0; i < chunks.length; i++) {
           try {
             const chunkResponse = await c.env.AI.run('@cf/openai/whisper', {
@@ -115,16 +124,41 @@ app.post('/api/transcribe', async (c) => {
             })
             
             if (chunkResponse.text) {
-              transcripts.push(chunkResponse.text)
+              let currentText = chunkResponse.text.trim()
+              
+              // オーバーラップ部分の重複を削減（簡易的な処理）
+              if (i > 0 && previousText) {
+                // 前のチャンクの最後の数単語と現在のチャンクの最初の数単語が一致する場合は削除
+                const prevWords = previousText.split(/\s+/).slice(-10) // 最後の10単語
+                const currWords = currentText.split(/\s+/)
+                
+                // 重複する単語数を検出
+                let overlapCount = 0
+                for (let j = 0; j < Math.min(prevWords.length, currWords.length); j++) {
+                  if (prevWords[prevWords.length - 1 - j] === currWords[j]) {
+                    overlapCount++
+                  } else {
+                    break
+                  }
+                }
+                
+                // 重複部分を削除
+                if (overlapCount > 2) { // 3単語以上重複している場合
+                  currentText = currWords.slice(overlapCount).join(' ')
+                }
+              }
+              
+              transcripts.push(currentText)
+              previousText = currentText
             }
             
-            // 進捗を更新（オプション）
+            // 進捗を更新
             const progress = Math.round(((i + 1) / chunks.length) * 100)
             await c.env.DB.prepare(`
               UPDATE transcriptions 
               SET error_message = ?, updated_at = CURRENT_TIMESTAMP
               WHERE id = ?
-            `).bind(`処理中: ${progress}%`, transcriptionId).run()
+            `).bind(`処理中: ${progress}% (${i + 1}/${chunks.length}チャンク)`, transcriptionId).run()
             
           } catch (chunkError) {
             console.error(`Chunk ${i + 1}/${chunks.length} error:`, chunkError)
