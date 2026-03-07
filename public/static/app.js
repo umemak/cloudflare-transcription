@@ -301,49 +301,87 @@ document.getElementById('uploadBtn')?.addEventListener('click', async () => {
       }
       
       const transcriptionId = uploadData.id
-      const transcripts = []
-      const allSegments = []
-      let currentTimeOffset = 0
       const chunkDuration = 30 // 30秒ごとのチャンク
       
-      // 各チャンクを順次文字起こし
-      for (let i = 0; i < chunks.length; i++) {
+      // 並列処理の制限数（同時に処理するチャンク数）
+      // 推奨値: 3-5（高すぎるとAPIレート制限に引っかかる可能性あり）
+      const MAX_PARALLEL = 3
+      
+      // 進捗表示用
+      let completedCount = 0
+      const updateProgress = () => {
+        completedCount++
         if (statusDiv) {
-          statusDiv.innerHTML = `<p class="info">チャンク ${i + 1}/${chunks.length} を処理中...</p>`
+          statusDiv.innerHTML = `<p class="info">処理中... ${completedCount}/${chunks.length} チャンク完了</p>`
         }
-        
+      }
+      
+      // チャンクを並列処理する関数
+      const processChunk = async (chunk, index) => {
         const chunkFormData = new FormData()
-        chunkFormData.append('audio', chunks[i], `chunk_${i}.wav`)
+        chunkFormData.append('audio', chunk, `chunk_${index}.wav`)
         chunkFormData.append('language', language)
-        chunkFormData.append('chunk_only', 'true') // チャンクのみ処理
+        chunkFormData.append('chunk_only', 'true')
         
-        const response = await fetch('/api/transcribe', {
-          method: 'POST',
-          body: chunkFormData
-        })
-        
-        const data = await response.json()
-        
-        if (response.ok && data.transcript) {
-          transcripts.push(data.transcript)
+        try {
+          const response = await fetch('/api/transcribe', {
+            method: 'POST',
+            body: chunkFormData
+          })
           
-          // セグメント情報を収集（タイムスタンプをオフセット）
-          if (data.segments && data.segments.length > 0) {
-            for (const segment of data.segments) {
-              allSegments.push({
-                start: segment.start + currentTimeOffset,
-                end: segment.end + currentTimeOffset,
-                text: segment.text
-              })
+          const data = await response.json()
+          updateProgress()
+          
+          if (response.ok && data.transcript) {
+            // タイムオフセットを適用したセグメント
+            const segments = (data.segments || []).map(seg => ({
+              start: seg.start + (index * chunkDuration),
+              end: seg.end + (index * chunkDuration),
+              text: seg.text
+            }))
+            
+            return {
+              index: index,
+              transcript: data.transcript,
+              segments: segments,
+              error: null
+            }
+          } else {
+            return {
+              index: index,
+              transcript: `[チャンク ${index + 1} エラー: ${data.error || '不明'}]`,
+              segments: [],
+              error: data.error
             }
           }
-        } else {
-          transcripts.push(`[チャンク ${i + 1} エラー: ${data.error || '不明'}]`)
+        } catch (error) {
+          updateProgress()
+          return {
+            index: index,
+            transcript: `[チャンク ${index + 1} エラー: ${error.message}]`,
+            segments: [],
+            error: error.message
+          }
         }
-        
-        // 次のチャンクのタイムオフセットを更新
-        currentTimeOffset += chunkDuration
       }
+      
+      // チャンクを並列処理（MAX_PARALLELずつバッチ処理）
+      const results = []
+      for (let i = 0; i < chunks.length; i += MAX_PARALLEL) {
+        const batch = chunks.slice(i, i + MAX_PARALLEL)
+        const batchPromises = batch.map((chunk, batchIndex) => 
+          processChunk(chunk, i + batchIndex)
+        )
+        const batchResults = await Promise.all(batchPromises)
+        results.push(...batchResults)
+      }
+      
+      // 結果をインデックス順にソート
+      results.sort((a, b) => a.index - b.index)
+      
+      // 文字起こしテキストとセグメントを結合
+      const transcripts = results.map(r => r.transcript)
+      const allSegments = results.flatMap(r => r.segments)
       
       const fullTranscript = transcripts.join(' ')
       
