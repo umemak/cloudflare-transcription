@@ -254,18 +254,37 @@ app.post('/api/transcribe', async (c) => {
         }) as any
         transcriptText = aiResponse.text || ''
         
+        // デバッグ: セグメント情報をログ出力
+        console.log('AI Response:', JSON.stringify(aiResponse, null, 2))
+        console.log('Segments count:', aiResponse.segments?.length || 0)
+        
         // VTTを生成
         let vttText = ''
         if (aiResponse.segments && aiResponse.segments.length > 0) {
           vttText = generateVTT(aiResponse.segments)
+          console.log('VTT generated, length:', vttText.length)
+        } else {
+          console.log('No segments found in AI response')
         }
         
         // Update with transcription result and VTT
-        await c.env.DB.prepare(`
-          UPDATE transcriptions 
-          SET transcript_text = ?, vtt_text = ?, status = 'completed', error_message = NULL, updated_at = CURRENT_TIMESTAMP
-          WHERE id = ?
-        `).bind(transcriptText, vttText, transcriptionId).run()
+        try {
+          await c.env.DB.prepare(`
+            UPDATE transcriptions 
+            SET transcript_text = ?, vtt_text = ?, status = 'completed', error_message = NULL, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+          `).bind(transcriptText, vttText, transcriptionId).run()
+          console.log('Database updated with VTT')
+        } catch (dbError) {
+          console.error('Database update error:', dbError)
+          // VTTカラムがない場合は、VTTなしで更新
+          await c.env.DB.prepare(`
+            UPDATE transcriptions 
+            SET transcript_text = ?, status = 'completed', error_message = NULL, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+          `).bind(transcriptText, transcriptionId).run()
+          console.log('Database updated without VTT (column may not exist)')
+        }
         
         return c.json({
           id: transcriptionId,
@@ -276,11 +295,21 @@ app.post('/api/transcribe', async (c) => {
       }
 
       // Update with transcription result (チャンク処理の場合はVTTなし)
-      await c.env.DB.prepare(`
-        UPDATE transcriptions 
-        SET transcript_text = ?, status = 'completed', error_message = NULL, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `).bind(transcriptText, transcriptionId).run()
+      try {
+        await c.env.DB.prepare(`
+          UPDATE transcriptions 
+          SET transcript_text = ?, vtt_text = NULL, status = 'completed', error_message = NULL, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).bind(transcriptText, transcriptionId).run()
+      } catch (dbError) {
+        console.error('Database update error (chunked):', dbError)
+        // VTTカラムがない場合
+        await c.env.DB.prepare(`
+          UPDATE transcriptions 
+          SET transcript_text = ?, status = 'completed', error_message = NULL, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).bind(transcriptText, transcriptionId).run()
+      }
 
       return c.json({
         id: transcriptionId,
