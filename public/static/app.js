@@ -12,6 +12,14 @@ document.getElementById('uploadBtn')?.addEventListener('click', async () => {
   const languageSelect = document.getElementById('language')
   const language = languageSelect ? languageSelect.value : 'ja'
   
+  // 警告: 大きなファイルの場合
+  const fileSizeMB = file.size / (1024 * 1024)
+  if (fileSizeMB > 1) {
+    if (!confirm(`ファイルサイズが ${fileSizeMB.toFixed(2)} MB です。大きなファイルや長い音声の文字起こしは失敗する可能性があります。続行しますか？`)) {
+      return
+    }
+  }
+  
   const formData = new FormData()
   formData.append('audio', file)
   formData.append('language', language)
