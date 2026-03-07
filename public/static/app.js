@@ -11,6 +11,11 @@ async function loadFFmpeg() {
     
     ffmpegInstance = new FFmpeg()
     
+    // ログハンドラを設定
+    ffmpegInstance.on('log', ({ message }) => {
+      console.log('[FFmpeg]', message)
+    })
+    
     // ローカルサーバーから直接読み込み（CORS回避）
     const baseURL = window.location.origin + '/static/ffmpeg'
     console.log('🔍 Trying to load FFmpeg from:', baseURL)
@@ -23,25 +28,25 @@ async function loadFFmpeg() {
       console.log('📦 Loading core from:', coreURL)
       console.log('📦 Loading wasm from:', wasmURL)
       
-      await ffmpegInstance.load({
+      // タイムアウト付きロード（30秒）
+      const loadPromise = ffmpegInstance.load({
         coreURL: coreURL,
         wasmURL: wasmURL
       })
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('FFmpeg load timeout (30s)')), 30000)
+      )
+      
+      await Promise.race([loadPromise, timeoutPromise])
+      
       console.log('✅ FFmpeg.wasm loaded from local server')
       ffmpegLoaded = true
       return ffmpegInstance
     } catch (localError) {
       console.warn('⚠️ Local FFmpeg files failed:', localError.message)
-      console.log('🔄 Trying CDN fallback...')
-      
-      // オプション2: CDNフォールバック（UMD版）
-      await ffmpegInstance.load({
-        coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
-        wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm',
-      })
-      console.log('✅ FFmpeg.wasm loaded from CDN')
-      ffmpegLoaded = true
-      return ffmpegInstance
+      console.log('🔄 Skipping CDN fallback (known CORS issue)')
+      throw localError
     }
   } catch (error) {
     console.error('❌ Failed to load FFmpeg.wasm:', error)

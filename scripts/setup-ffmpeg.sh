@@ -30,6 +30,10 @@ curl -L "${BASE_URL}/ffmpeg-core.worker.js" -o "${FFMPEG_DIR}/ffmpeg-core.worker
 echo "⬇️  Downloading ffmpeg.js (main)..."
 curl -L "${MAIN_URL}/ffmpeg.js" -o "${FFMPEG_MAIN_DIR}/ffmpeg.js"
 
+# FFmpeg Workerをダウンロード
+echo "⬇️  Downloading 814.ffmpeg.js (worker)..."
+curl -L "${MAIN_URL}/814.ffmpeg.js" -o "${FFMPEG_MAIN_DIR}/814.ffmpeg.js"
+
 # FFmpegユーティリティをダウンロード
 echo "⬇️  Downloading ffmpeg util (index.js)..."
 curl -L "https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/index.js" -o "${FFMPEG_MAIN_DIR}/ffmpeg-util.js"
