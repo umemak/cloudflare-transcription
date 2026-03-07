@@ -120,7 +120,7 @@ app.post('/api/transcribe', async (c) => {
           try {
             const chunkResponse = await c.env.AI.run('@cf/openai/whisper', {
               audio: [...chunks[i]],
-              source_lang: language
+              language: language  // languageパラメータを使用
             })
             
             if (chunkResponse.text) {
@@ -172,7 +172,7 @@ app.post('/api/transcribe', async (c) => {
         // 小さなファイル: 一度に処理
         const aiResponse = await c.env.AI.run('@cf/openai/whisper', {
           audio: [...audioData],
-          source_lang: language
+          language: language  // languageパラメータを使用
         })
         transcriptText = aiResponse.text || ''
       }
