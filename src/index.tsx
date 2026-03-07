@@ -4,8 +4,8 @@ import { renderer } from './renderer'
 
 type Bindings = {
   DB: D1Database
-  AUDIO_BUCKET?: R2Bucket
-  AI?: Ai
+  AUDIO_BUCKET: R2Bucket
+  AI?: Ai  // Optional for local development
 }
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -46,19 +46,6 @@ app.get('/', (c) => {
 // API: Upload audio and transcribe
 app.post('/api/transcribe', async (c) => {
   try {
-    // Check if required services are available
-    if (!c.env.AUDIO_BUCKET) {
-      return c.json({ 
-        error: 'R2 storage is not configured. Please set up Cloudflare API key.' 
-      }, 503)
-    }
-    
-    if (!c.env.AI) {
-      return c.json({ 
-        error: 'AI service is not configured. Please set up Cloudflare API key.' 
-      }, 503)
-    }
-
     const formData = await c.req.formData()
     const audioFile = formData.get('audio') as File
     
@@ -89,6 +76,11 @@ app.post('/api/transcribe', async (c) => {
 
     // Perform transcription using Cloudflare AI
     try {
+      // Check if AI is available
+      if (!c.env.AI) {
+        throw new Error('AI service is not available in local development. Deploy to production to use AI transcription.')
+      }
+
       // Convert ArrayBuffer to Uint8Array for AI API
       const audioData = new Uint8Array(arrayBuffer)
       
@@ -185,8 +177,8 @@ app.delete('/api/transcriptions/:id', async (c) => {
       SELECT audio_file_key FROM transcriptions WHERE id = ?
     `).bind(id).first() as { audio_file_key: string } | null
 
-    if (transcription && c.env.AUDIO_BUCKET) {
-      // Delete from R2 if available
+    if (transcription) {
+      // Delete from R2
       await c.env.AUDIO_BUCKET.delete(transcription.audio_file_key)
     }
 

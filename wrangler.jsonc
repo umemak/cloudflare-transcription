@@ -6,6 +6,12 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
+  "r2_buckets": [
+    {
+      "binding": "AUDIO_BUCKET",
+      "bucket_name": "webapp-audio-bucket"
+    }
+  ],
   "d1_databases": [
     {
       "binding": "DB",
@@ -13,4 +19,9 @@
       "database_id": ""
     }
   ]
+  // AI binding requires Cloudflare API token
+  // Uncomment for production deployment:
+  // "ai": {
+  //   "binding": "AI"
+  // }
 }
