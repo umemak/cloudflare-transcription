@@ -165,6 +165,18 @@ CREATE TABLE transcriptions (
 5. 文字起こし結果をD1に保存（status: 'completed'）
 6. フロントエンドで結果を表示
 
+## 必要要件
+
+- **Node.js**: 18.0.0以上
+- **npm**: 9.0.0以上
+- **Cloudflare アカウント**: AI機能を使用する場合
+
+バージョン確認:
+```bash
+node --version  # v18.0.0以上
+npm --version   # v9.0.0以上
+```
+
 ## セットアップ
 
 ### 1. リポジトリのクローン
@@ -423,6 +435,59 @@ npm run deploy:prod
 
 # ポートクリーンアップ
 npm run clean-port
+```
+
+## トラブルシューティング
+
+### ビルドエラー: "File is not defined" または "Cannot find base config file"
+
+**原因**: Node.jsのバージョンが古い可能性があります。
+
+**解決方法**:
+```bash
+# Node.jsのバージョンを確認
+node --version
+
+# Node.js 18以上が必要です
+# Node.jsが古い場合は、最新のLTS版をインストール
+# https://nodejs.org/
+```
+
+**Windows環境での注意**:
+- Node.js 18.0.0以上を使用してください
+- 必要に応じて、`npm install`を再実行してください
+
+### ポートが既に使用されている
+
+**エラー**: `EADDRINUSE: address already in use :::3000`
+
+**解決方法**:
+```bash
+# Windowsの場合
+netstat -ano | findstr :3000
+taskkill /PID <PID番号> /F
+
+# macOS/Linuxの場合
+lsof -ti:3000 | xargs kill -9
+```
+
+### Cloudflare APIトークンエラー
+
+**エラー**: `CLOUDFLARE_API_TOKEN environment variable is required`
+
+**解決方法**:
+1. APIトークンを環境変数に設定
+2. または`npx wrangler login`でログイン
+3. `npx wrangler whoami`で確認
+
+### D1データベースが見つからない
+
+**エラー**: Database not found
+
+**解決方法**:
+```bash
+# マイグレーションを実行
+npm run db:migrate:local
 ```
 
 ## ライセンス
