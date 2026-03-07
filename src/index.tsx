@@ -89,11 +89,11 @@ app.post('/api/transcribe', async (c) => {
 
     // Perform transcription using Cloudflare AI
     try {
-      // Convert ArrayBuffer to Uint8Array for AI API
+      // whisper-large-v3-turbo requires Uint8Array or ArrayBuffer
       const audioData = new Uint8Array(arrayBuffer)
       
       const aiResponse = await c.env.AI.run('@cf/openai/whisper-large-v3-turbo', {
-        audio: Array.from(audioData),
+        audio: audioData,  // Uint8Array形式で送信
         language: language  // フォームから取得した言語（デフォルト: 'ja'）
       })
 
