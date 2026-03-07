@@ -72,10 +72,9 @@ app.post('/api/transcribe', async (c) => {
     if (chunkOnly) {
       try {
         const arrayBuffer = await audioFile.arrayBuffer()
-        const audioData = new Uint8Array(arrayBuffer)
         
         const aiResponse = await c.env.AI.run('@cf/openai/whisper-large-v3-turbo', {
-          audio: [...audioData]
+          audio: arrayBuffer  // ArrayBufferを直接渡す
         })
         
         return c.json({
@@ -157,7 +156,7 @@ app.post('/api/transcribe', async (c) => {
             console.log(`Processing chunk ${i + 1}/${chunks.length}, size: ${chunks[i].length}, language: ${language}`)
             
             const chunkResponse = await c.env.AI.run('@cf/openai/whisper-large-v3-turbo', {
-              audio: [...chunks[i]]
+              audio: chunks[i].buffer  // ArrayBufferを直接渡す
               // 言語パラメータを削除して自動検出に任せる
             })
             
@@ -211,7 +210,7 @@ app.post('/api/transcribe', async (c) => {
         console.log(`Processing single file, size: ${audioData.length}, language: ${language}`)
         
         const aiResponse = await c.env.AI.run('@cf/openai/whisper-large-v3-turbo', {
-          audio: [...audioData]
+          audio: arrayBuffer  // ArrayBufferを直接渡す
           // 言語パラメータを削除して自動検出に任せる
         })
         transcriptText = aiResponse.text || ''
