@@ -140,7 +140,23 @@ CREATE TABLE transcriptions (
 
 ## 使い方
 
-### ローカル開発環境（現在の状態）
+### ローカル開発環境
+
+#### 開発サーバーの起動
+
+```bash
+# ビルドして開発サーバーを起動（D1のみ）
+npm run dev
+
+# または、R2とAI含めた完全な環境（APIキー設定が必要）
+npm run dev:full
+```
+
+開発サーバーが起動すると、以下のURLでアクセスできます：
+- **ローカル**: http://localhost:3000
+- **公開URL**: https://3000-ix5qmr41gfwhuu57bslru-ea026bf9.sandbox.novita.ai
+
+#### 現在の状態
 
 現在、ローカル開発環境ではD1データベースのみが動作しています。R2とAIを使用するには、Cloudflare APIキーの設定が必要です。
 
@@ -267,7 +283,6 @@ webapp/
 │   └── 0001_initial_schema.sql  # D1データベースマイグレーション
 ├── .git/                 # Gitリポジトリ
 ├── .gitignore            # Git除外設定
-├── ecosystem.config.cjs  # PM2設定（ローカル開発用）
 ├── wrangler.jsonc        # Cloudflare Workers設定
 ├── package.json          # 依存関係とスクリプト
 ├── tsconfig.json         # TypeScript設定
@@ -284,9 +299,11 @@ npm install
 # ビルド
 npm run build
 
-# ローカル開発サーバーの起動（PM2）
-npm run clean-port
-pm2 start ecosystem.config.cjs
+# 開発サーバーの起動（D1のみ）
+npm run dev
+
+# 開発サーバーの起動（R2とAI含む、APIキー設定が必要）
+npm run dev:full
 
 # ローカルD1マイグレーション
 npm run db:migrate:local
@@ -299,15 +316,6 @@ npm run deploy:prod
 
 # ポートクリーンアップ
 npm run clean-port
-
-# PM2ログ確認
-pm2 logs --nostream
-
-# PM2サービス一覧
-pm2 list
-
-# PM2サービス停止
-pm2 delete webapp
 ```
 
 ## ライセンス
