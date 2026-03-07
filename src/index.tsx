@@ -19,6 +19,30 @@ function base64Encode(buffer: ArrayBuffer): string {
   return btoa(binary)
 }
 
+// タイムスタンプをVTT形式にフォーマット（HH:MM:SS.mmm）
+function formatTimeVTT(seconds: number): string {
+  const pad = (num: number) => (num < 10 ? `0${num}` : num)
+  
+  const H = pad(Math.floor(seconds / 3600))
+  const M = pad(Math.floor((seconds % 3600) / 60))
+  const S = pad(Math.floor(seconds % 60))
+  const ms = `${Math.round((seconds % 1) * 1000)}`.padStart(3, '0')
+  
+  return `${H}:${M}:${S}.${ms}`
+}
+
+// セグメント情報からVTTを生成
+function generateVTT(segments: any[]): string {
+  let vtt = 'WEBVTT\n\n'
+  
+  for (const segment of segments) {
+    vtt += `${formatTimeVTT(segment.start)} --> ${formatTimeVTT(segment.end)}\n`
+    vtt += `${segment.text}\n\n`
+  }
+  
+  return vtt
+}
+
 const app = new Hono<{ Bindings: Bindings }>()
 
 // Enable CORS for API routes
@@ -87,11 +111,12 @@ app.post('/api/transcribe', async (c) => {
         
         const aiResponse = await c.env.AI.run('@cf/openai/whisper-large-v3-turbo', {
           audio: base64Audio  // Base64エンコードされた文字列として渡す
-        })
+        }) as any
         
         return c.json({
           status: 'completed',
-          transcript: aiResponse.text || ''
+          transcript: aiResponse.text || '',
+          segments: aiResponse.segments || []
         })
       } catch (aiError) {
         const errorMessage = aiError instanceof Error ? aiError.message : 'Unknown error'
@@ -226,11 +251,31 @@ app.post('/api/transcribe', async (c) => {
         const aiResponse = await c.env.AI.run('@cf/openai/whisper-large-v3-turbo', {
           audio: base64Audio  // Base64エンコードされた文字列として渡す
           // 言語パラメータを削除して自動検出に任せる
-        })
+        }) as any
         transcriptText = aiResponse.text || ''
+        
+        // VTTを生成
+        let vttText = ''
+        if (aiResponse.segments && aiResponse.segments.length > 0) {
+          vttText = generateVTT(aiResponse.segments)
+        }
+        
+        // Update with transcription result and VTT
+        await c.env.DB.prepare(`
+          UPDATE transcriptions 
+          SET transcript_text = ?, vtt_text = ?, status = 'completed', error_message = NULL, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).bind(transcriptText, vttText, transcriptionId).run()
+        
+        return c.json({
+          id: transcriptionId,
+          status: 'completed',
+          transcript: transcriptText,
+          vtt: vttText
+        })
       }
 
-      // Update with transcription result
+      // Update with transcription result (チャンク処理の場合はVTTなし)
       await c.env.DB.prepare(`
         UPDATE transcriptions 
         SET transcript_text = ?, status = 'completed', error_message = NULL, updated_at = CURRENT_TIMESTAMP
@@ -269,7 +314,7 @@ app.post('/api/transcribe', async (c) => {
 app.get('/api/transcriptions', async (c) => {
   try {
     const result = await c.env.DB.prepare(`
-      SELECT id, audio_file_name, audio_file_size, transcript_text, status, error_message, created_at, updated_at
+      SELECT id, audio_file_name, audio_file_size, transcript_text, vtt_text, status, error_message, created_at, updated_at
       FROM transcriptions
       ORDER BY created_at DESC
       LIMIT 50
@@ -289,7 +334,7 @@ app.get('/api/transcriptions/:id', async (c) => {
   try {
     const id = c.req.param('id')
     const result = await c.env.DB.prepare(`
-      SELECT id, audio_file_name, audio_file_size, transcript_text, status, error_message, created_at, updated_at
+      SELECT id, audio_file_name, audio_file_size, transcript_text, vtt_text, status, error_message, created_at, updated_at
       FROM transcriptions
       WHERE id = ?
     `).bind(id).first()

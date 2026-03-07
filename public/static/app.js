@@ -423,12 +423,23 @@ async function loadTranscriptions() {
                 ステータス: <span class="status-${t.status}">${getStatusText(t.status)}</span>
               </p>
             </div>
-            <button class="delete-btn" onclick="deleteTranscription(${t.id})">削除</button>
+            <div class="button-group">
+              ${t.vtt_text ? `
+                <button class="download-btn" onclick="downloadVTT(${t.id}, '${t.audio_file_name}')">VTTダウンロード</button>
+              ` : ''}
+              <button class="delete-btn" onclick="deleteTranscription(${t.id})">削除</button>
+            </div>
           </div>
           ${t.transcript_text ? `
             <div class="transcript-text">
               <h4>文字起こし結果:</h4>
               <p>${t.transcript_text}</p>
+            </div>
+          ` : ''}
+          ${t.vtt_text ? `
+            <div class="vtt-preview">
+              <h4>VTTプレビュー:</h4>
+              <pre>${t.vtt_text.substring(0, 500)}${t.vtt_text.length > 500 ? '...' : ''}</pre>
             </div>
           ` : ''}
           ${t.error_message ? `
@@ -445,6 +456,32 @@ async function loadTranscriptions() {
   } catch (error) {
     console.error('Load error:', error)
     listDiv.innerHTML = '<p class="error">データの読み込みに失敗しました</p>'
+  }
+}
+
+// Download VTT file
+async function downloadVTT(id, filename) {
+  try {
+    const response = await fetch(`/api/transcriptions/${id}`)
+    const data = await response.json()
+    
+    if (response.ok && data.vtt_text) {
+      // Create blob and download
+      const blob = new Blob([data.vtt_text], { type: 'text/vtt' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename.replace(/\.[^/.]+$/, '') + '.vtt'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } else {
+      alert('VTTデータが見つかりません')
+    }
+  } catch (error) {
+    console.error('Download VTT error:', error)
+    alert('VTTのダウンロードに失敗しました')
   }
 }
 
@@ -470,7 +507,8 @@ async function deleteTranscription(id) {
   }
 }
 
-// Make deleteTranscription globally accessible
+// Make functions globally accessible
+window.downloadVTT = downloadVTT
 window.deleteTranscription = deleteTranscription
 
 // Refresh button
