@@ -13,8 +13,8 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "dev": "npm run build && wrangler pages dev dist --d1=webapp-production --r2=webapp-audio-bucket --local --ip 0.0.0.0 --port 3000",
-    "dev:ai": "npm run build && wrangler pages dev dist --d1=webapp-production --r2=webapp-audio-bucket --ai=AI --local --ip 0.0.0.0 --port 3000",
+    "dev": "npm run build && wrangler pages dev dist --d1=webapp-production --r2=webapp-audio-bucket --local --port 3000",
+    "dev:ai": "npm run build && wrangler pages dev dist --d1=webapp-production --r2=webapp-audio-bucket --ai=AI --local --port 3000",
     "build": "vite build",
     "preview": "wrangler pages dev dist",
     "deploy": "npm run build && wrangler pages deploy dist",
@@ -22,7 +22,7 @@
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "db:migrate:local": "wrangler d1 migrations apply webapp-production --local",
     "db:migrate:prod": "wrangler d1 migrations apply webapp-production",
-    "clean-port": "fuser -k 3000/tcp 2>/dev/null || true"
+    "clean-port": "echo 'Port cleaning not available on Windows'"
   },
   "dependencies": {
     "hono": "^4.12.5"

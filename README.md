@@ -439,23 +439,36 @@ npm run clean-port
 
 ## トラブルシューティング
 
-### ビルドエラー: "File is not defined" または "Cannot find base config file"
+### ビルドエラー: "File is not defined" または undiciエラー
 
-**原因**: Node.jsのバージョンが古い可能性があります。
+**原因**: 依存関係またはキャッシュの問題
 
-**解決方法**:
-```bash
-# Node.jsのバージョンを確認
-node --version
+**解決方法（Windows）**:
+```powershell
+# PowerShellの場合
+Remove-Item -Recurse -Force node_modules
+Remove-Item -Force package-lock.json
+npm install
+npm run build
 
-# Node.js 18以上が必要です
-# Node.jsが古い場合は、最新のLTS版をインストール
-# https://nodejs.org/
+# コマンドプロンプトの場合
+# rmdir /s /q node_modules
+# del package-lock.json
+# npm install
+# npm run build
 ```
 
-**Windows環境での注意**:
-- Node.js 18.0.0以上を使用してください
-- 必要に応じて、`npm install`を再実行してください
+**解決方法（macOS/Linux）**:
+```bash
+rm -rf node_modules package-lock.json
+npm install
+npm run build
+```
+
+**Node.jsバージョン確認**:
+```bash
+node --version  # v18.16.0以上を推奨
+```
 
 ### ポートが既に使用されている
 
