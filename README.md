@@ -24,11 +24,14 @@ cd cloudflare-transcription
 # 依存関係のインストール（FFmpeg.wasmファイルも自動ダウンロード）
 npm install
 
+# Wrangler v4に更新（重要）
+npm install --save-dev wrangler@4
+
 # miniflareのインストール（Honoの開発サーバーに必要）
 npm install miniflare --save-dev
 
 # データベースのマイグレーション
-npm run db:migrate:local
+npx wrangler d1 migrations apply webapp-production --local
 
 # 開発サーバーの起動（D1 + R2のみ）
 npm run dev
