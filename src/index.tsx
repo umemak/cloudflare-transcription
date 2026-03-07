@@ -387,17 +387,43 @@ app.post('/api/transcriptions/:id/update', async (c) => {
     const id = c.req.param('id')
     const formData = await c.req.formData()
     const transcript = formData.get('transcript') as string
+    const segmentsJson = formData.get('segments') as string
     
     if (!transcript) {
       return c.json({ error: 'No transcript provided' }, 400)
     }
     
+    // VTTを生成（セグメント情報がある場合）
+    let vttText = ''
+    if (segmentsJson) {
+      try {
+        const segments = JSON.parse(segmentsJson)
+        if (segments && segments.length > 0) {
+          vttText = generateVTT(segments)
+          console.log('VTT generated from chunked segments, count:', segments.length)
+        }
+      } catch (parseError) {
+        console.error('Failed to parse segments:', parseError)
+      }
+    }
+    
     // Update the transcription record
-    await c.env.DB.prepare(`
-      UPDATE transcriptions 
-      SET transcript_text = ?, status = 'completed', updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).bind(transcript, id).run()
+    try {
+      await c.env.DB.prepare(`
+        UPDATE transcriptions 
+        SET transcript_text = ?, vtt_text = ?, status = 'completed', updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).bind(transcript, vttText, id).run()
+      console.log('Database updated with chunked VTT')
+    } catch (dbError) {
+      console.error('Database update error:', dbError)
+      // VTTカラムがない場合
+      await c.env.DB.prepare(`
+        UPDATE transcriptions 
+        SET transcript_text = ?, status = 'completed', updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).bind(transcript, id).run()
+    }
     
     return c.json({ success: true })
   } catch (error) {

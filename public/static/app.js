@@ -302,6 +302,9 @@ document.getElementById('uploadBtn')?.addEventListener('click', async () => {
       
       const transcriptionId = uploadData.id
       const transcripts = []
+      const allSegments = []
+      let currentTimeOffset = 0
+      const chunkDuration = 30 // 30秒ごとのチャンク
       
       // 各チャンクを順次文字起こし
       for (let i = 0; i < chunks.length; i++) {
@@ -323,16 +326,31 @@ document.getElementById('uploadBtn')?.addEventListener('click', async () => {
         
         if (response.ok && data.transcript) {
           transcripts.push(data.transcript)
+          
+          // セグメント情報を収集（タイムスタンプをオフセット）
+          if (data.segments && data.segments.length > 0) {
+            for (const segment of data.segments) {
+              allSegments.push({
+                start: segment.start + currentTimeOffset,
+                end: segment.end + currentTimeOffset,
+                text: segment.text
+              })
+            }
+          }
         } else {
           transcripts.push(`[チャンク ${i + 1} エラー: ${data.error || '不明'}]`)
         }
+        
+        // 次のチャンクのタイムオフセットを更新
+        currentTimeOffset += chunkDuration
       }
       
       const fullTranscript = transcripts.join(' ')
       
-      // 完全な文字起こし結果を元のレコードに保存
+      // 完全な文字起こし結果とセグメント情報を元のレコードに保存
       const updateFormData = new FormData()
       updateFormData.append('transcript', fullTranscript)
+      updateFormData.append('segments', JSON.stringify(allSegments))
       
       await fetch(`/api/transcriptions/${transcriptionId}/update`, {
         method: 'POST',
