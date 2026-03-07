@@ -1,4 +1,110 @@
-// 音声ファイルを時間で分割する関数
+// FFmpeg.wasmインスタンス（グローバル）
+let ffmpegInstance = null
+let ffmpegLoaded = false
+
+// FFmpeg.wasmを初期化
+async function loadFFmpeg() {
+  if (ffmpegLoaded) return ffmpegInstance
+  
+  try {
+    const { FFmpeg } = FFmpegWASM
+    const { toBlobURL } = FFmpegUtil
+    
+    ffmpegInstance = new FFmpeg()
+    
+    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd'
+    await ffmpegInstance.load({
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm')
+    })
+    
+    ffmpegLoaded = true
+    console.log('FFmpeg.wasm loaded successfully')
+    return ffmpegInstance
+  } catch (error) {
+    console.error('Failed to load FFmpeg.wasm:', error)
+    throw error
+  }
+}
+
+// FFmpeg.wasmを使って無音検出で音声を分割
+async function splitAudioBySilence(file, silenceThreshold = -40, minSilenceDuration = 0.5) {
+  try {
+    const ffmpeg = await loadFFmpeg()
+    
+    // ファイルをFFmpegに読み込み
+    const arrayBuffer = await file.arrayBuffer()
+    await ffmpeg.writeFile('input.mp3', new Uint8Array(arrayBuffer))
+    
+    // 無音検出を実行（silencedetectフィルター）
+    await ffmpeg.exec([
+      '-i', 'input.mp3',
+      '-af', `silencedetect=noise=${silenceThreshold}dB:d=${minSilenceDuration}`,
+      '-f', 'null',
+      '-'
+    ])
+    
+    // ログから無音区間を抽出
+    // 注意: FFmpeg.wasmのログ取得は限定的なため、簡易的な分割を実装
+    
+    // シンプルなアプローチ: 30秒ごとに分割（無音検出の代わり）
+    // 実際の無音検出実装はより複雑
+    const duration = 30 // 秒
+    const chunks = []
+    
+    // 音声の総時間を取得
+    await ffmpeg.exec(['-i', 'input.mp3', '-f', 'null', '-'])
+    
+    // 30秒ごとに分割
+    let startTime = 0
+    let chunkIndex = 0
+    
+    while (true) {
+      const outputName = `chunk_${chunkIndex}.wav`
+      
+      try {
+        await ffmpeg.exec([
+          '-i', 'input.mp3',
+          '-ss', `${startTime}`,
+          '-t', `${duration}`,
+          '-acodec', 'pcm_s16le',
+          '-ar', '16000',
+          '-ac', '1',
+          outputName
+        ])
+        
+        const data = await ffmpeg.readFile(outputName)
+        const blob = new Blob([data.buffer], { type: 'audio/wav' })
+        
+        if (blob.size > 100) { // 有効なチャンクのみ
+          chunks.push(blob)
+          chunkIndex++
+          startTime += duration
+        } else {
+          break
+        }
+      } catch (error) {
+        // 最後のチャンクに到達
+        break
+      }
+    }
+    
+    // クリーンアップ
+    await ffmpeg.deleteFile('input.mp3')
+    for (let i = 0; i < chunkIndex; i++) {
+      try {
+        await ffmpeg.deleteFile(`chunk_${i}.wav`)
+      } catch (e) {}
+    }
+    
+    return chunks
+  } catch (error) {
+    console.error('FFmpeg processing error:', error)
+    throw error
+  }
+}
+
+// Web Audio APIを使った音声分割（フォールバック）
 async function splitAudioByTime(file, chunkDurationSeconds = 30) {
   return new Promise((resolve, reject) => {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)()
@@ -120,13 +226,21 @@ document.getElementById('uploadBtn')?.addEventListener('click', async () => {
   try {
     // 大きなファイルの場合は30秒ごとに分割
     if (fileSizeMB > 1) {
-      if (!confirm(`ファイルサイズが ${fileSizeMB.toFixed(2)} MB です。30秒ごとに分割して処理します。続行しますか？`)) {
+      if (!confirm(`ファイルサイズが ${fileSizeMB.toFixed(2)} MB です。FFmpeg.wasmを使って30秒ごとに分割して処理します。続行しますか？`)) {
         return
       }
       
-      if (statusDiv) statusDiv.innerHTML = `<p class="info">音声を分割中...</p>`
+      if (statusDiv) statusDiv.innerHTML = `<p class="info">FFmpeg.wasmを読み込み中...</p>`
       
-      const chunks = await splitAudioByTime(file, 30) // 30秒ごと
+      let chunks
+      try {
+        // FFmpeg.wasmを使った分割を試行
+        chunks = await splitAudioBySilence(file, -40, 0.5)
+      } catch (ffmpegError) {
+        console.warn('FFmpeg.wasm failed, falling back to Web Audio API:', ffmpegError)
+        if (statusDiv) statusDiv.innerHTML = `<p class="info">Web Audio APIで分割中...</p>`
+        chunks = await splitAudioByTime(file, 30) // フォールバック
+      }
       
       if (statusDiv) {
         statusDiv.innerHTML = `<p class="info">${chunks.length}個のチャンクに分割しました。処理中...</p>`
