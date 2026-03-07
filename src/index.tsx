@@ -8,6 +8,17 @@ type Bindings = {
   AI: Ai
 }
 
+// Base64エンコード関数
+function base64Encode(buffer: ArrayBuffer): string {
+  let binary = ''
+  const bytes = new Uint8Array(buffer)
+  const len = bytes.byteLength
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  return btoa(binary)
+}
+
 const app = new Hono<{ Bindings: Bindings }>()
 
 // Enable CORS for API routes
@@ -72,10 +83,10 @@ app.post('/api/transcribe', async (c) => {
     if (chunkOnly) {
       try {
         const arrayBuffer = await audioFile.arrayBuffer()
-        const audioArray = Array.from(new Uint8Array(arrayBuffer))
+        const base64Audio = base64Encode(arrayBuffer)
         
         const aiResponse = await c.env.AI.run('@cf/openai/whisper-large-v3-turbo', {
-          audio: audioArray  // 数値配列として渡す
+          audio: base64Audio  // Base64エンコードされた文字列として渡す
         })
         
         return c.json({
@@ -156,8 +167,9 @@ app.post('/api/transcribe', async (c) => {
           try {
             console.log(`Processing chunk ${i + 1}/${chunks.length}, size: ${chunks[i].length}, language: ${language}`)
             
+            const base64Chunk = base64Encode(chunks[i].buffer)
             const chunkResponse = await c.env.AI.run('@cf/openai/whisper-large-v3-turbo', {
-              audio: Array.from(chunks[i])  // Uint8Arrayを数値配列に変換
+              audio: base64Chunk  // Base64エンコードされた文字列として渡す
               // 言語パラメータを削除して自動検出に任せる
             })
             
@@ -210,8 +222,9 @@ app.post('/api/transcribe', async (c) => {
         // 小さなファイル: 一度に処理
         console.log(`Processing single file, size: ${audioData.length}, language: ${language}`)
         
+        const base64Audio = base64Encode(arrayBuffer)
         const aiResponse = await c.env.AI.run('@cf/openai/whisper-large-v3-turbo', {
-          audio: Array.from(audioData)  // Uint8Arrayを数値配列に変換
+          audio: base64Audio  // Base64エンコードされた文字列として渡す
           // 言語パラメータを削除して自動検出に任せる
         })
         transcriptText = aiResponse.text || ''
