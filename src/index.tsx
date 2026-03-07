@@ -92,7 +92,7 @@ app.post('/api/transcribe', async (c) => {
       // Convert ArrayBuffer to Uint8Array for AI API
       const audioData = new Uint8Array(arrayBuffer)
       
-      const aiResponse = await c.env.AI.run('@cf/openai/whisper', {
+      const aiResponse = await c.env.AI.run('@cf/openai/whisper-large-v3-turbo', {
         audio: Array.from(audioData),
         language: language  // フォームから取得した言語（デフォルト: 'ja'）
       })
