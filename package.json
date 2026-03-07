@@ -22,7 +22,9 @@
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "db:migrate:local": "wrangler d1 migrations apply webapp-production --local",
     "db:migrate:prod": "wrangler d1 migrations apply webapp-production",
-    "clean-port": "echo 'Port cleaning not available on Windows'"
+    "clean-port": "echo 'Port cleaning not available on Windows'",
+    "setup:ffmpeg": "bash scripts/setup-ffmpeg.sh",
+    "postinstall": "npm run setup:ffmpeg"
   },
   "dependencies": {
     "hono": "^4.12.5"

@@ -44,3 +44,7 @@ pids/
 *.bak
 *.tar.gz
 *.zip
+
+# FFmpeg.wasm files (large binary files)
+public/static/ffmpeg/*.wasm
+public/static/ffmpeg/*.js

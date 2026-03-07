@@ -2,26 +2,39 @@
 let ffmpegInstance = null
 let ffmpegLoaded = false
 
-// FFmpeg.wasmを初期化
+// FFmpeg.wasmを初期化（ローカルサーバーから読み込み）
 async function loadFFmpeg() {
   if (ffmpegLoaded) return ffmpegInstance
   
   try {
     const { FFmpeg } = FFmpegWASM
-    const { toBlobURL } = FFmpegUtil
     
     ffmpegInstance = new FFmpeg()
     
-    // jsdelivrを使用（CORSに対応）
-    const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd'
-    await ffmpegInstance.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm')
-    })
+    // ローカルサーバーから直接読み込み（CORS回避）
+    const baseURL = window.location.origin + '/static/ffmpeg'
     
-    ffmpegLoaded = true
-    console.log('FFmpeg.wasm loaded successfully')
-    return ffmpegInstance
+    // オプション1: ローカルファイルがある場合
+    try {
+      await ffmpegInstance.load({
+        coreURL: `${baseURL}/ffmpeg-core.js`,
+        wasmURL: `${baseURL}/ffmpeg-core.wasm`
+      })
+      console.log('FFmpeg.wasm loaded from local server')
+      ffmpegLoaded = true
+      return ffmpegInstance
+    } catch (localError) {
+      console.log('Local FFmpeg files not found, trying CDN...')
+      
+      // オプション2: CDNから直接読み込み（toBlobURLを使わない）
+      await ffmpegInstance.load({
+        coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.js',
+        wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.wasm',
+      })
+      console.log('FFmpeg.wasm loaded from CDN')
+      ffmpegLoaded = true
+      return ffmpegInstance
+    }
   } catch (error) {
     console.error('Failed to load FFmpeg.wasm:', error)
     throw error
@@ -236,16 +249,16 @@ document.getElementById('uploadBtn')?.addEventListener('click', async () => {
       
       // まずFFmpeg.wasmを試す（無音検出分割）
       try {
-        if (statusDiv) statusDiv.innerHTML = `<p class="info">高度な音声分割を試行中...</p>`
+        if (statusDiv) statusDiv.innerHTML = `<p class="info">FFmpeg.wasmを読み込み中...</p>`
         chunks = await splitAudioBySilence(file, -40, 0.5)
         usedFFmpeg = true
-        console.log('Using FFmpeg.wasm for silence-based splitting')
+        console.log('✅ Using FFmpeg.wasm for silence-based splitting')
       } catch (ffmpegError) {
         // FFmpegが失敗したらWeb Audio APIにフォールバック
-        console.warn('FFmpeg.wasm failed, using Web Audio API fallback:', ffmpegError)
+        console.warn('⚠️ FFmpeg.wasm failed, using Web Audio API fallback:', ffmpegError)
         if (statusDiv) statusDiv.innerHTML = `<p class="info">音声を時間ベースで分割中...</p>`
         chunks = await splitAudioByTime(file, 30)
-        console.log('Using Web Audio API for time-based splitting')
+        console.log('✅ Using Web Audio API for time-based splitting')
       }
       
       if (statusDiv) {
