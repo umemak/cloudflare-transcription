@@ -1,6 +1,6 @@
 // Upload and transcribe audio file
 document.getElementById('uploadBtn')?.addEventListener('click', async () => {
-  const fileInput = document.getElementById('audioFile') as HTMLInputElement
+  const fileInput = document.getElementById('audioFile')
   const statusDiv = document.getElementById('uploadStatus')
   
   if (!fileInput.files || fileInput.files.length === 0) {
@@ -64,7 +64,7 @@ async function loadTranscriptions() {
         return
       }
 
-      listDiv.innerHTML = data.transcriptions.map((t: any) => `
+      listDiv.innerHTML = data.transcriptions.map((t) => `
         <div class="transcription-item">
           <div class="transcription-header">
             <div>
@@ -101,7 +101,7 @@ async function loadTranscriptions() {
 }
 
 // Delete transcription
-async function deleteTranscription(id: number) {
+async function deleteTranscription(id) {
   if (!confirm('この文字起こしを削除しますか？')) {
     return
   }
@@ -123,13 +123,13 @@ async function deleteTranscription(id: number) {
 }
 
 // Make deleteTranscription globally accessible
-(window as any).deleteTranscription = deleteTranscription
+window.deleteTranscription = deleteTranscription
 
 // Refresh button
 document.getElementById('refreshBtn')?.addEventListener('click', loadTranscriptions)
 
 // Format bytes to human readable
-function formatBytes(bytes: number): string {
+function formatBytes(bytes) {
   if (bytes === 0) return '0 Bytes'
   const k = 1024
   const sizes = ['Bytes', 'KB', 'MB', 'GB']
@@ -138,14 +138,14 @@ function formatBytes(bytes: number): string {
 }
 
 // Format date
-function formatDate(dateString: string): string {
+function formatDate(dateString) {
   const date = new Date(dateString)
   return date.toLocaleString('ja-JP')
 }
 
 // Get status text
-function getStatusText(status: string): string {
-  const statusMap: { [key: string]: string } = {
+function getStatusText(status) {
+  const statusMap = {
     'pending': '待機中',
     'processing': '処理中',
     'completed': '完了',
