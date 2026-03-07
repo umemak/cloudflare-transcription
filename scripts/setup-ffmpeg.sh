@@ -4,7 +4,7 @@
 
 FFMPEG_DIR="public/static/ffmpeg"
 FFMPEG_VERSION="0.12.6"
-BASE_URL="https://unpkg.com/@ffmpeg/core@${FFMPEG_VERSION}/dist/esm"
+BASE_URL="https://unpkg.com/@ffmpeg/core@${FFMPEG_VERSION}/dist/umd"
 
 echo "📦 Downloading FFmpeg.wasm files..."
 
