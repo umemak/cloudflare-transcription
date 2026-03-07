@@ -151,9 +151,9 @@ CREATE TABLE transcriptions (
    - ローカル開発時は `.wrangler/state/v3/r2` にローカルストレージが作成される
    - **✅ ローカルで動作**
 
-3. **Cloudflare AI** (Whisper モデル)
+3. **Cloudflare AI** (Whisper Large V3 Turbo モデル)
    - 音声ファイルの文字起こし処理
-   - モデル: `@cf/openai/whisper`
+   - モデル: `@cf/openai/whisper-large-v3-turbo`（高精度＋高速）
    - **⚠️ リモートサービス（ローカルでもAPIキーがあれば使用可能）**
 
 ### データフロー
