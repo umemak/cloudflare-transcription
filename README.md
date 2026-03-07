@@ -167,15 +167,33 @@ CREATE TABLE transcriptions (
 
 ## 必要要件
 
-- **Node.js**: 18.0.0以上
-- **npm**: 9.0.0以上
+- **Node.js**: 20.0.0以上（推奨: v20.18.0以上）
+- **npm**: 10.0.0以上
 - **Cloudflare アカウント**: AI機能を使用する場合
 
 バージョン確認:
 ```bash
-node --version  # v18.0.0以上
-npm --version   # v9.0.0以上
+node --version  # v20.0.0以上
+npm --version   # v10.0.0以上
 ```
+
+### Node.jsのアップグレード方法
+
+#### nvm（Node Version Manager）を使用（推奨）:
+```bash
+# Node.js 20をインストール
+nvm install 20
+nvm use 20
+
+# バージョン確認
+node --version
+```
+
+#### 直接インストール:
+1. https://nodejs.org/ にアクセス
+2. LTS版（v20.x.x以上）をダウンロード
+3. インストーラーを実行
+4. コマンドプロンプト/ターミナルを再起動
 
 ## セットアップ
 
@@ -467,7 +485,17 @@ npm run build
 
 **Node.jsバージョン確認**:
 ```bash
-node --version  # v18.16.0以上を推奨
+node --version  # v20.0.0以上が必要
+```
+
+**Node.js 18の場合のエラー**:
+最新のwranglerはNode.js 20以上が必要です。Node.jsをアップグレードしてください。
+
+```bash
+# nvmを使用する場合
+nvm install 20
+nvm use 20
+node --version
 ```
 
 ### ポートが既に使用されている
