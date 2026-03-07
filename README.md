@@ -24,6 +24,9 @@ cd cloudflare-transcription
 # 依存関係のインストール（FFmpeg.wasmファイルも自動ダウンロード）
 npm install
 
+# miniflareのインストール（Honoの開発サーバーに必要）
+npm install miniflare --save-dev
+
 # データベースのマイグレーション
 npm run db:migrate:local
 
