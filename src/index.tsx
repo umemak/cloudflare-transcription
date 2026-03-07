@@ -92,7 +92,8 @@ app.post('/api/transcribe', async (c) => {
       const audioData = new Uint8Array(arrayBuffer)
       
       // 音声ファイルのサイズをチェック（1MB = 1,048,576バイト）
-      const CHUNK_SIZE = 1 * 1024 * 1024 // 1MB
+      // 注意: MP3などのフォーマットはバイナリ分割できないため、チャンク処理を無効化
+      const CHUNK_SIZE = 10 * 1024 * 1024 // 10MB（実質的にチャンク処理を無効化）
       const OVERLAP_SIZE = 128 * 1024 // 128KB オーバーラップ（約5-10秒相当）
       const needsChunking = audioData.length > CHUNK_SIZE
       
