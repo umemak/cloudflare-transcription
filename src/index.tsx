@@ -27,6 +27,18 @@ app.get('/', (c) => {
         <div className="upload-section">
           <h2>音声ファイルをアップロード</h2>
           <input type="file" id="audioFile" accept="audio/*" />
+          <div className="language-selector">
+            <label htmlFor="language">言語:</label>
+            <select id="language">
+              <option value="ja">日本語</option>
+              <option value="en">英語</option>
+              <option value="zh">中国語</option>
+              <option value="ko">韓国語</option>
+              <option value="es">スペイン語</option>
+              <option value="fr">フランス語</option>
+              <option value="de">ドイツ語</option>
+            </select>
+          </div>
           <button id="uploadBtn">アップロードして文字起こし</button>
           <div id="uploadStatus"></div>
         </div>
@@ -48,6 +60,7 @@ app.post('/api/transcribe', async (c) => {
   try {
     const formData = await c.req.formData()
     const audioFile = formData.get('audio') as File
+    const language = formData.get('language') as string || 'ja'  // デフォルトは日本語
     
     if (!audioFile) {
       return c.json({ error: 'No audio file provided' }, 400)
@@ -80,7 +93,8 @@ app.post('/api/transcribe', async (c) => {
       const audioData = new Uint8Array(arrayBuffer)
       
       const aiResponse = await c.env.AI.run('@cf/openai/whisper', {
-        audio: Array.from(audioData)
+        audio: Array.from(audioData),
+        language: language  // フォームから取得した言語（デフォルト: 'ja'）
       })
 
       const transcriptText = aiResponse.text || ''

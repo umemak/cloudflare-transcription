@@ -9,8 +9,12 @@ document.getElementById('uploadBtn')?.addEventListener('click', async () => {
   }
 
   const file = fileInput.files[0]
+  const languageSelect = document.getElementById('language')
+  const language = languageSelect ? languageSelect.value : 'ja'
+  
   const formData = new FormData()
   formData.append('audio', file)
+  formData.append('language', language)
 
   if (statusDiv) statusDiv.innerHTML = '<p class="info">アップロード中...</p>'
 
