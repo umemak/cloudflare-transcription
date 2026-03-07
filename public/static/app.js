@@ -253,10 +253,6 @@ document.getElementById('uploadBtn')?.addEventListener('click', async () => {
   try {
     // 大きなファイルの場合は30秒ごとに分割
     if (fileSizeMB > 1) {
-      if (!confirm(`ファイルサイズが ${fileSizeMB.toFixed(2)} MB です。30秒ごとに分割して処理します。続行しますか？\n\n処理時間: 約${Math.ceil(fileSizeMB / 0.2)}分`)) {
-        return
-      }
-      
       let chunks
       let usedFFmpeg = false
       
