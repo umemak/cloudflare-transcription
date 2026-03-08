@@ -433,6 +433,18 @@ npx wrangler r2 bucket create webapp-audio-bucket
 # ✅ Created bucket webapp-audio-bucket
 ```
 
+#### Cloudflare Pagesプロジェクトの作成
+
+```bash
+# Pagesプロジェクトを作成
+npx wrangler pages project create webapp --production-branch main
+
+# 成功メッセージが表示されます
+# ✅ Successfully created the 'webapp' project.
+```
+
+**注意**: GitHub Actionsで初回デプロイ時に自動的にプロジェクトが作成されるため、この手順は省略可能です。
+
 ### セットアップ手順
 
 #### 1. Cloudflare APIトークンの取得
