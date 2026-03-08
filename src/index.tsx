@@ -101,24 +101,38 @@ app.use('/api/transcribe', async (c, next) => {
 app.use('/api/transcriptions*', async (c, next) => {
   const sessionToken = getCookie(c, 'session_token')
   
+  console.log('Auth middleware for /api/transcriptions*, session:', sessionToken ? 'present' : 'missing')
+  
   if (!sessionToken) {
     return c.json({ error: 'Unauthorized - Please login' }, 401)
   }
   
   const [email] = sessionToken.split(':')
+  console.log('Extracted email from session:', email)
   
-  const user = await c.env.DB.prepare(`
-    SELECT id, email FROM users WHERE email = ?
-  `).bind(email).first() as { id: number; email: string } | null
-  
-  if (!user) {
-    return c.json({ error: 'Unauthorized - Invalid session' }, 401)
+  try {
+    const user = await c.env.DB.prepare(`
+      SELECT id, email FROM users WHERE email = ?
+    `).bind(email).first() as { id: number; email: string } | null
+    
+    console.log('User lookup result:', user ? `Found user ${user.id}` : 'Not found')
+    
+    if (!user) {
+      return c.json({ error: 'Unauthorized - Invalid session' }, 401)
+    }
+    
+    c.set('userId', user.id)
+    c.set('userEmail', user.email)
+    console.log('Set userId in context:', user.id)
+    
+    await next()
+  } catch (error) {
+    console.error('Auth middleware error:', error)
+    return c.json({ 
+      error: 'Database error during authentication',
+      details: error instanceof Error ? error.message : String(error)
+    }, 500)
   }
-  
-  c.set('userId', user.id)
-  c.set('userEmail', user.email)
-  
-  await next()
 })
 
 app.use('/api/audio/*', async (c, next) => {
@@ -652,6 +666,13 @@ app.get('/api/transcriptions', async (c) => {
   try {
     const userId = c.get('userId')
     
+    console.log('Fetching transcriptions for user:', userId)
+    
+    if (!userId) {
+      console.error('userId is not set in context')
+      return c.json({ error: 'User not authenticated properly' }, 401)
+    }
+    
     const result = await c.env.DB.prepare(`
       SELECT id, audio_file_key, audio_file_name, audio_file_size, transcript_text, vtt_text, status, error_message, created_at, updated_at
       FROM transcriptions
@@ -660,11 +681,14 @@ app.get('/api/transcriptions', async (c) => {
       LIMIT 50
     `).bind(userId).all()
 
-    return c.json({ transcriptions: result.results })
+    console.log('Transcriptions fetched:', result.results?.length || 0)
+    return c.json({ transcriptions: result.results || [] })
   } catch (error) {
     console.error('Get transcriptions error:', error)
+    console.error('Error details:', error instanceof Error ? error.stack : error)
     return c.json({
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
+      details: error instanceof Error ? error.stack : String(error)
     }, 500)
   }
 })
