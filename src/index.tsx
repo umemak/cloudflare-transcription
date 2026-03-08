@@ -98,7 +98,45 @@ app.use('/api/transcribe', async (c, next) => {
   await next()
 })
 
-app.use('/api/transcriptions*', async (c, next) => {
+// Auth middleware for transcriptions endpoints
+app.use('/api/transcriptions', async (c, next) => {
+  const sessionToken = getCookie(c, 'session_token')
+  
+  console.log('Auth middleware for /api/transcriptions, session:', sessionToken ? 'present' : 'missing')
+  
+  if (!sessionToken) {
+    return c.json({ error: 'Unauthorized - Please login' }, 401)
+  }
+  
+  const [email] = sessionToken.split(':')
+  console.log('Extracted email from session:', email)
+  
+  try {
+    const user = await c.env.DB.prepare(`
+      SELECT id, email FROM users WHERE email = ?
+    `).bind(email).first() as { id: number; email: string } | null
+    
+    console.log('User lookup result:', user ? `Found user ${user.id}` : 'Not found')
+    
+    if (!user) {
+      return c.json({ error: 'Unauthorized - Invalid session' }, 401)
+    }
+    
+    c.set('userId', user.id)
+    c.set('userEmail', user.email)
+    console.log('Set userId in context:', user.id)
+    
+    await next()
+  } catch (error) {
+    console.error('Auth middleware error:', error)
+    return c.json({ 
+      error: 'Database error during authentication',
+      details: error instanceof Error ? error.message : String(error)
+    }, 500)
+  }
+})
+
+app.use('/api/transcriptions/*', async (c, next) => {
   const sessionToken = getCookie(c, 'session_token')
   
   console.log('Auth middleware for /api/transcriptions*, session:', sessionToken ? 'present' : 'missing')
