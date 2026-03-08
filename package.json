@@ -15,7 +15,8 @@
   "scripts": {
     "dev": "npm run build && wrangler dev --port 3000",
     "dev:ai": "npm run build && wrangler dev --port 3000",
-    "build": "vite build",
+    "build": "vite build && npm run fix-routes",
+    "fix-routes": "node scripts/fix-routes.js",
     "preview": "wrangler dev",
     "deploy": "npm run build && wrangler deploy",
     "deploy:prod": "npm run build && wrangler deploy",

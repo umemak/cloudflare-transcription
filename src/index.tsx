@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
+import { serveStatic } from 'hono/cloudflare-workers'
 import { renderer } from './renderer'
 
 type Bindings = {
@@ -142,6 +143,9 @@ app.use('/api/audio/*', async (c, next) => {
   
   await next()
 })
+
+// Serve static files
+app.use('/static/*', serveStatic({ root: './' }))
 
 // Frontend renderer
 app.use(renderer)
