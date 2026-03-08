@@ -478,20 +478,15 @@ async function loadTranscriptions() {
             <div class="button-group">
               ${t.vtt_text ? `
                 <button class="download-btn" onclick="downloadVTT(${t.id}, '${t.audio_file_name}')">VTTダウンロード</button>
+                <button class="save-btn" onclick="saveVTT(${t.id})">保存</button>
               ` : ''}
               <button class="delete-btn" onclick="deleteTranscription(${t.id})">削除</button>
             </div>
           </div>
-          ${t.transcript_text ? `
-            <div class="transcript-text">
-              <h4>文字起こし結果:</h4>
-              <p>${t.transcript_text}</p>
-            </div>
-          ` : ''}
           ${t.vtt_text ? `
-            <div class="vtt-preview">
-              <h4>VTTプレビュー:</h4>
-              <pre>${t.vtt_text.substring(0, 500)}${t.vtt_text.length > 500 ? '...' : ''}</pre>
+            <div class="vtt-editor">
+              <h4>VTT編集:</h4>
+              <textarea id="vtt-${t.id}" class="vtt-textarea">${t.vtt_text}</textarea>
             </div>
           ` : ''}
           ${t.error_message ? `
@@ -514,12 +509,13 @@ async function loadTranscriptions() {
 // Download VTT file
 async function downloadVTT(id, filename) {
   try {
-    const response = await fetch(`/api/transcriptions/${id}`)
-    const data = await response.json()
+    // Get current content from textarea
+    const textarea = document.getElementById(`vtt-${id}`)
+    const vttContent = textarea ? textarea.value : null
     
-    if (response.ok && data.vtt_text) {
+    if (vttContent) {
       // Create blob and download
-      const blob = new Blob([data.vtt_text], { type: 'text/vtt' })
+      const blob = new Blob([vttContent], { type: 'text/vtt' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -534,6 +530,37 @@ async function downloadVTT(id, filename) {
   } catch (error) {
     console.error('Download VTT error:', error)
     alert('VTTのダウンロードに失敗しました')
+  }
+}
+
+// Save VTT file
+async function saveVTT(id) {
+  try {
+    const textarea = document.getElementById(`vtt-${id}`)
+    if (!textarea) {
+      alert('VTTデータが見つかりません')
+      return
+    }
+    
+    const vttContent = textarea.value
+    
+    const formData = new FormData()
+    formData.append('vtt_text', vttContent)
+    
+    const response = await fetch(`/api/transcriptions/${id}/vtt`, {
+      method: 'POST',
+      body: formData
+    })
+    
+    if (response.ok) {
+      alert('VTTを保存しました')
+    } else {
+      const data = await response.json()
+      alert(`保存に失敗しました: ${data.error || '不明なエラー'}`)
+    }
+  } catch (error) {
+    console.error('Save VTT error:', error)
+    alert('VTTの保存に失敗しました')
   }
 }
 
@@ -561,6 +588,7 @@ async function deleteTranscription(id) {
 
 // Make functions globally accessible
 window.downloadVTT = downloadVTT
+window.saveVTT = saveVTT
 window.deleteTranscription = deleteTranscription
 
 // Refresh button

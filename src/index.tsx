@@ -434,6 +434,33 @@ app.post('/api/transcriptions/:id/update', async (c) => {
   }
 })
 
+// API: Update VTT text only
+app.post('/api/transcriptions/:id/vtt', async (c) => {
+  try {
+    const id = c.req.param('id')
+    const formData = await c.req.formData()
+    const vttText = formData.get('vtt_text') as string
+    
+    if (!vttText) {
+      return c.json({ error: 'No VTT text provided' }, 400)
+    }
+    
+    // Update only the VTT text
+    await c.env.DB.prepare(`
+      UPDATE transcriptions 
+      SET vtt_text = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(vttText, id).run()
+    
+    return c.json({ success: true })
+  } catch (error) {
+    console.error('Update VTT error:', error)
+    return c.json({
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, 500)
+  }
+})
+
 // API: Delete transcription
 app.delete('/api/transcriptions/:id', async (c) => {
   try {
