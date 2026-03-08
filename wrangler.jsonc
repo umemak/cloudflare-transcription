@@ -1,25 +1,30 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "webapp",
-  "compatibility_date": "2026-03-07",
-  "pages_build_output_dir": "./dist",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
-  "r2_buckets": [
-    {
-      "binding": "AUDIO_BUCKET",
-      "bucket_name": "webapp-audio-bucket"
-    }
-  ],
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "cloudflare-transcription-db",
-      "database_id": ""
-    }
-  ],
-  "ai": {
-    "binding": "AI"
-  }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "webapp",
+	"compatibility_date": "2026-03-07",
+	"pages_build_output_dir": "./dist",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"r2_buckets": [
+		{
+			"binding": "AUDIO_BUCKET",
+			"bucket_name": "webapp-audio-bucket"
+		}
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "cloudflare-transcription-db",
+			"database_id": ""
+		},
+		{
+			"binding": "cloudflare_transcription_db",
+			"database_name": "cloudflare-transcription-db",
+			"database_id": "4a93b73d-13c7-4c70-a621-6c4b0991a4cc"
+		}
+	],
+	"ai": {
+		"binding": "AI"
+	}
 }
