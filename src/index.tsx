@@ -342,12 +342,14 @@ app.post('/api/signup', async (c) => {
     
     // Set cookie
     setCookie(c, 'session_token', sessionToken, {
+      path: '/',
       httpOnly: true,
       secure: true,
       sameSite: 'Lax',
       maxAge: 60 * 60 * 24 * 30 // 30 days
     })
     
+    console.log('Signup: Set session cookie for user:', email)
     return c.json({ success: true, email })
   } catch (error) {
     console.error('Signup error:', error)
@@ -384,17 +386,19 @@ app.post('/api/login', async (c) => {
     }
     
     // Generate session token
-    const sessionToken = `${email}:${generateSessionToken()}`
+    const sessionToken = `${user.email}:${generateSessionToken()}`
     
     // Set cookie
     setCookie(c, 'session_token', sessionToken, {
+      path: '/',
       httpOnly: true,
       secure: true,
       sameSite: 'Lax',
       maxAge: 60 * 60 * 24 * 30 // 30 days
     })
     
-    return c.json({ success: true, email })
+    console.log('Login: Set session cookie for user:', user.email)
+    return c.json({ success: true, email: user.email })
   } catch (error) {
     console.error('Login error:', error)
     return c.json({
