@@ -17,11 +17,6 @@
 			"binding": "DB",
 			"database_name": "cloudflare-transcription-db",
 			"database_id": "4a93b73d-13c7-4c70-a621-6c4b0991a4cc"
-		},
-		{
-			"binding": "cloudflare_transcription_db",
-			"database_name": "cloudflare-transcription-db",
-			"database_id": "4a93b73d-13c7-4c70-a621-6c4b0991a4cc"
 		}
 	],
 	"ai": {
