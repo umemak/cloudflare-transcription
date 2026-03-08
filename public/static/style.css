@@ -312,6 +312,26 @@ h4 {
   background: #3182ce;
 }
 
+.audio-player-container {
+  background: white;
+  padding: 1rem;
+  border-radius: 0.375rem;
+  border-left: 4px solid #4299e1;
+  margin-top: 1rem;
+}
+
+.audio-player {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.vtt-hint {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: #718096;
+  font-style: italic;
+}
+
 /* Status badges */
 .status-pending {
   color: #744210;

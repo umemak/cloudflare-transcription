@@ -343,7 +343,7 @@ app.post('/api/transcribe', async (c) => {
 app.get('/api/transcriptions', async (c) => {
   try {
     const result = await c.env.DB.prepare(`
-      SELECT id, audio_file_name, audio_file_size, transcript_text, vtt_text, status, error_message, created_at, updated_at
+      SELECT id, audio_file_key, audio_file_name, audio_file_size, transcript_text, vtt_text, status, error_message, created_at, updated_at
       FROM transcriptions
       ORDER BY created_at DESC
       LIMIT 50
@@ -363,7 +363,7 @@ app.get('/api/transcriptions/:id', async (c) => {
   try {
     const id = c.req.param('id')
     const result = await c.env.DB.prepare(`
-      SELECT id, audio_file_name, audio_file_size, transcript_text, vtt_text, status, error_message, created_at, updated_at
+      SELECT id, audio_file_key, audio_file_name, audio_file_size, transcript_text, vtt_text, status, error_message, created_at, updated_at
       FROM transcriptions
       WHERE id = ?
     `).bind(id).first()
@@ -375,6 +375,44 @@ app.get('/api/transcriptions/:id', async (c) => {
     return c.json(result)
   } catch (error) {
     console.error('Get transcription error:', error)
+    return c.json({
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, 500)
+  }
+})
+
+// API: Stream audio file from R2
+app.get('/api/audio/:id', async (c) => {
+  try {
+    const id = c.req.param('id')
+    
+    // Get audio file key from database
+    const transcription = await c.env.DB.prepare(`
+      SELECT audio_file_key FROM transcriptions WHERE id = ?
+    `).bind(id).first() as { audio_file_key: string } | null
+    
+    if (!transcription) {
+      return c.json({ error: 'Transcription not found' }, 404)
+    }
+    
+    // Get audio file from R2
+    const object = await c.env.AUDIO_BUCKET.get(transcription.audio_file_key)
+    
+    if (!object) {
+      return c.json({ error: 'Audio file not found' }, 404)
+    }
+    
+    // Stream the audio file
+    return new Response(object.body, {
+      headers: {
+        'Content-Type': object.httpMetadata?.contentType || 'audio/mpeg',
+        'Content-Length': object.size.toString(),
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'public, max-age=31536000'
+      }
+    })
+  } catch (error) {
+    console.error('Stream audio error:', error)
     return c.json({
       error: error instanceof Error ? error.message : 'Unknown error'
     }, 500)

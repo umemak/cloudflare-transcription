@@ -484,9 +484,16 @@ async function loadTranscriptions() {
             </div>
           </div>
           ${t.vtt_text ? `
+            <div class="audio-player-container">
+              <h4>音声プレーヤー:</h4>
+              <audio id="audio-${t.id}" class="audio-player" controls preload="metadata">
+                <source src="/api/audio/${t.id}" type="audio/mpeg">
+                お使いのブラウザは音声再生に対応していません。
+              </audio>
+            </div>
             <div class="vtt-editor">
-              <h4>VTT編集:</h4>
-              <textarea id="vtt-${t.id}" class="vtt-textarea">${t.vtt_text}</textarea>
+              <h4>VTT編集: <span class="vtt-hint">（タイムスタンプをクリックすると該当箇所を再生）</span></h4>
+              <textarea id="vtt-${t.id}" class="vtt-textarea" data-audio-id="audio-${t.id}">${t.vtt_text}</textarea>
             </div>
           ` : ''}
           ${t.error_message ? `
@@ -497,12 +504,81 @@ async function loadTranscriptions() {
           ` : ''}
         </div>
       `).join('')
+      
+      // Add click listeners for timestamps after rendering
+      attachTimestampListeners()
     } else {
       listDiv.innerHTML = '<p class="error">データの読み込みに失敗しました</p>'
     }
   } catch (error) {
     console.error('Load error:', error)
     listDiv.innerHTML = '<p class="error">データの読み込みに失敗しました</p>'
+  }
+}
+
+// Parse VTT timestamp to seconds
+function parseVTTTimestamp(timestamp) {
+  // Format: HH:MM:SS.mmm or MM:SS.mmm
+  const parts = timestamp.split(':')
+  let hours = 0, minutes = 0, seconds = 0
+  
+  if (parts.length === 3) {
+    hours = parseInt(parts[0])
+    minutes = parseInt(parts[1])
+    seconds = parseFloat(parts[2])
+  } else if (parts.length === 2) {
+    minutes = parseInt(parts[0])
+    seconds = parseFloat(parts[1])
+  } else {
+    seconds = parseFloat(parts[0])
+  }
+  
+  return hours * 3600 + minutes * 60 + seconds
+}
+
+// Attach click listeners to timestamps in VTT textareas
+function attachTimestampListeners() {
+  document.querySelectorAll('.vtt-textarea').forEach(textarea => {
+    const audioId = textarea.getAttribute('data-audio-id')
+    if (!audioId) return
+    
+    const audio = document.getElementById(audioId)
+    if (!audio) return
+    
+    // Remove existing listener if any
+    textarea.removeEventListener('click', handleTimestampClick)
+    
+    // Add click listener
+    textarea.addEventListener('click', function(e) {
+      handleTimestampClick(e, textarea, audio)
+    })
+  })
+}
+
+// Handle timestamp click in VTT textarea
+function handleTimestampClick(e, textarea, audio) {
+  const cursorPos = textarea.selectionStart
+  const text = textarea.value
+  
+  // Find the line containing the cursor
+  const lines = text.substring(0, cursorPos).split('\n')
+  const currentLine = lines[lines.length - 1]
+  
+  // Check if the line contains a timestamp (format: HH:MM:SS.mmm --> HH:MM:SS.mmm)
+  const timestampRegex = /(\d{1,2}:)?(\d{1,2}):(\d{1,2}\.\d{3})\s*-->\s*(\d{1,2}:)?(\d{1,2}):(\d{1,2}\.\d{3})/
+  const match = currentLine.match(timestampRegex)
+  
+  if (match) {
+    const startTimestamp = match[0].split('-->')[0].trim()
+    const seconds = parseVTTTimestamp(startTimestamp)
+    
+    console.log('Seeking to:', startTimestamp, '(', seconds, 'seconds)')
+    
+    // Seek to the timestamp and play
+    audio.currentTime = seconds
+    audio.play().catch(err => {
+      console.error('Failed to play audio:', err)
+    })
   }
 }
 
