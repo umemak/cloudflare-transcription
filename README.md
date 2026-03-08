@@ -365,7 +365,7 @@ Cloudflare APIキーを設定すると、ローカル開発環境でも完全な
 ## デプロイ情報
 
 - **プラットフォーム**: Cloudflare Pages / Workers
-- **ステータス**: 🟡 ローカル開発完了（本番デプロイ未実施）
+- **ステータス**: ✅ GitHub Actions自動デプロイ設定済み
 - **技術スタック**:
   - バックエンド: Hono v4 (Cloudflare Workers)
   - フロントエンド: HTML + JavaScript + Tailwind CSS
@@ -373,7 +373,84 @@ Cloudflare APIキーを設定すると、ローカル開発環境でも完全な
   - ストレージ: Cloudflare R2
   - AI: Cloudflare AI (Whisper)
   - 言語: TypeScript
+- **CI/CD**: GitHub Actions（mainブランチへのpush時に自動デプロイ）
 - **最終更新**: 2026-03-07
+
+## GitHub Actions自動デプロイ
+
+このプロジェクトは、`main`ブランチに push すると自動的に Cloudflare Pages にデプロイされます。
+
+### セットアップ手順
+
+#### 1. Cloudflare APIトークンの取得
+
+1. [Cloudflare Dashboard](https://dash.cloudflare.com/) にログイン
+2. 右上のアカウントアイコン → **My Profile**
+3. 左メニュー → **API Tokens**
+4. **Create Token** ボタンをクリック
+5. **Edit Cloudflare Workers** テンプレートを選択
+6. 必要な権限を確認：
+   - Account: Cloudflare Pages (Edit)
+   - Account: D1 (Edit)
+   - Account: Workers R2 Storage (Edit)
+   - Account: Workers AI (Read)
+7. **Continue to summary** → **Create Token**
+8. 生成されたトークンをコピー
+
+#### 2. Cloudflare Account IDの取得
+
+1. [Cloudflare Dashboard](https://dash.cloudflare.com/) にアクセス
+2. 左サイドバーの **Workers & Pages** をクリック
+3. 右サイドバーに **Account ID** が表示されています（コピーアイコンでコピー）
+
+#### 3. GitHub Secretsの設定
+
+1. GitHubリポジトリページを開く
+2. **Settings** タブをクリック
+3. 左メニューの **Secrets and variables** → **Actions** をクリック
+4. **New repository secret** ボタンをクリック
+5. 以下の2つのシークレットを追加：
+
+**シークレット1: CLOUDFLARE_API_TOKEN**
+- Name: `CLOUDFLARE_API_TOKEN`
+- Secret: 手順1で取得したAPIトークンを貼り付け
+- **Add secret** をクリック
+
+**シークレット2: CLOUDFLARE_ACCOUNT_ID**
+- Name: `CLOUDFLARE_ACCOUNT_ID`
+- Secret: 手順2で取得したAccount IDを貼り付け
+- **Add secret** をクリック
+
+#### 4. デプロイの確認
+
+設定完了後、`main`ブランチに push すると自動的にデプロイが開始されます。
+
+```bash
+git add .
+git commit -m "Update feature"
+git push origin main
+```
+
+デプロイの進行状況は以下で確認できます：
+1. GitHubリポジトリの **Actions** タブ
+2. 最新のワークフロー実行をクリック
+3. **Deploy** ジョブの詳細を表示
+
+デプロイが成功すると、Cloudflare Pagesの本番URLでアプリケーションにアクセスできます。
+
+### ワークフローの構成
+
+`.github/workflows/deploy.yml`で定義されています：
+
+- **トリガー**: `main`ブランチへのpush
+- **実行環境**: Ubuntu latest
+- **ステップ**:
+  1. コードのチェックアウト
+  2. Node.js 20のセットアップ
+  3. 依存関係のインストール (`npm ci`)
+  4. FFmpeg.wasmファイルのダウンロード
+  5. プロジェクトのビルド (`npm run build`)
+  6. Cloudflare Pagesへのデプロイ (`wrangler pages deploy`)
 
 ## 機能
 
