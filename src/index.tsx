@@ -345,7 +345,7 @@ app.post('/api/signup', async (c) => {
       path: '/',
       httpOnly: true,
       secure: true,
-      sameSite: 'Lax',
+      sameSite: 'None',
       maxAge: 60 * 60 * 24 * 30 // 30 days
     })
     
@@ -393,7 +393,7 @@ app.post('/api/login', async (c) => {
       path: '/',
       httpOnly: true,
       secure: true,
-      sameSite: 'Lax',
+      sameSite: 'None',
       maxAge: 60 * 60 * 24 * 30 // 30 days
     })
     
