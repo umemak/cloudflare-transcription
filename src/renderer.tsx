@@ -1,4 +1,8 @@
 import { jsxRenderer } from 'hono/jsx-renderer'
+import { authJs } from './static/auth'
+import { styleCss } from './static/style'
+import { ffmpegJs } from './static/ffmpeg'
+import { ffmpegUtilJs } from './static/ffmpeg-util'
 
 export const renderer = jsxRenderer(({ children }) => {
   return (
@@ -8,13 +12,13 @@ export const renderer = jsxRenderer(({ children }) => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>音声文字起こしアプリ</title>
         <script src="https://cdn.tailwindcss.com"></script>
-        <script src="/static/ffmpeg.js"></script>
-        <script src="/static/ffmpeg-util.js"></script>
-        <link href="/static/style.css" rel="stylesheet" />
+        <script dangerouslySetInnerHTML={{ __html: ffmpegJs }}></script>
+        <script dangerouslySetInnerHTML={{ __html: ffmpegUtilJs }}></script>
+        <style dangerouslySetInnerHTML={{ __html: styleCss }}></style>
       </head>
       <body className="bg-gray-50 min-h-screen">
         {children}
-        <script src="/static/auth.js"></script>
+        <script dangerouslySetInnerHTML={{ __html: authJs }}></script>
       </body>
     </html>
   )

@@ -10,7 +10,7 @@ const routesPath = path.join(__dirname, '..', 'dist', '_routes.json')
 const routesConfig = {
   version: 1,
   include: ['/*'],
-  exclude: ['/static/*']
+  exclude: []
 }
 
 fs.writeFileSync(routesPath, JSON.stringify(routesConfig))

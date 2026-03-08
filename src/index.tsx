@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
 import { renderer } from './renderer'
+import { appJs } from './static/app'
 
 type Bindings = {
   DB: D1Database
@@ -265,7 +266,7 @@ app.get('/', async (c) => {
         </div>
       </div>
 
-      <script src="/static/app.js"></script>
+      <script dangerouslySetInnerHTML={{ __html: appJs }}></script>
     </>
   )
 })

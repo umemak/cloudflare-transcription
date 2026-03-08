@@ -6,9 +6,6 @@
 	"compatibility_flags": [
 		"nodejs_compat"
 	],
-	"assets": {
-		"directory": "./public/static"
-	},
 	"r2_buckets": [
 		{
 			"binding": "AUDIO_BUCKET",
