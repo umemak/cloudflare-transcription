@@ -275,6 +275,8 @@ app.post('/api/signup', async (c) => {
     const email = formData.get('email') as string
     const password = formData.get('password') as string
     
+    console.log('Signup attempt:', email)
+    
     if (!email || !password) {
       return c.json({ error: 'Email and password are required' }, 400)
     }
@@ -284,21 +286,39 @@ app.post('/api/signup', async (c) => {
     }
     
     // Check if user already exists
-    const existingUser = await c.env.DB.prepare(`
-      SELECT id FROM users WHERE email = ?
-    `).bind(email).first()
-    
-    if (existingUser) {
-      return c.json({ error: 'User already exists' }, 400)
+    try {
+      const existingUser = await c.env.DB.prepare(`
+        SELECT id FROM users WHERE email = ?
+      `).bind(email).first()
+      
+      if (existingUser) {
+        return c.json({ error: 'User already exists' }, 400)
+      }
+    } catch (dbError) {
+      console.error('Database error checking user:', dbError)
+      return c.json({ 
+        error: 'Database error. Users table may not exist. Please ensure migrations have been applied.',
+        details: dbError instanceof Error ? dbError.message : 'Unknown database error'
+      }, 500)
     }
     
     // Hash password
     const passwordHash = await hashPassword(password)
     
     // Create user
-    await c.env.DB.prepare(`
-      INSERT INTO users (email, password_hash) VALUES (?, ?)
-    `).bind(email, passwordHash).run()
+    try {
+      await c.env.DB.prepare(`
+        INSERT INTO users (email, password_hash) VALUES (?, ?)
+      `).bind(email, passwordHash).run()
+      
+      console.log('User created successfully:', email)
+    } catch (insertError) {
+      console.error('Database error inserting user:', insertError)
+      return c.json({ 
+        error: 'Failed to create user. Users table may not exist.',
+        details: insertError instanceof Error ? insertError.message : 'Unknown database error'
+      }, 500)
+    }
     
     // Generate session token
     const sessionToken = `${email}:${generateSessionToken()}`

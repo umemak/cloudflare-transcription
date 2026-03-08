@@ -710,6 +710,61 @@ lsof -ti:3000 | xargs kill -9
 npm run db:migrate:local
 ```
 
+### ユーザー登録・ログインができない
+
+**症状**: 新規登録やログイン時にエラーが発生する
+
+**原因**: 本番環境でD1マイグレーションが実行されていない可能性があります
+
+**確認方法**:
+1. GitHubリポジトリの **Actions** タブを開く
+2. 最新のワークフロー実行をクリック
+3. **Run D1 Migrations** ステップを確認
+4. エラーメッセージがないか確認
+
+**解決方法**:
+
+#### 1. GitHub Actionsでマイグレーションを再実行
+```bash
+# ダミーコミットでワークフローを再トリガー
+git commit --allow-empty -m "Trigger migration re-run"
+git push origin main
+```
+
+#### 2. ローカルから手動でマイグレーションを実行（要APIトークン）
+```bash
+# 本番環境にマイグレーションを適用
+npx wrangler d1 migrations apply cloudflare-transcription-db --remote
+```
+
+#### 3. マイグレーション状態の確認
+```bash
+# 本番環境のマイグレーション状態を確認
+npx wrangler d1 migrations list cloudflare-transcription-db --remote
+```
+
+#### 4. ブラウザのコンソールでエラーを確認
+1. ブラウザでアプリを開く（例: https://cloudflare-transcription.umemak.workers.dev/）
+2. F12キーを押して開発者ツールを開く
+3. **Console** タブを開く
+4. 新規登録を試す
+5. エラーメッセージを確認（`Signup error response:` のログを探す）
+6. エラーに `Users table may not exist` が含まれている場合は、マイグレーションが未実行
+
+#### 5. データベースIDの確認
+`wrangler.jsonc`で正しいdatabase_idが設定されているか確認してください：
+```jsonc
+{
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cloudflare-transcription-db",
+      "database_id": "4a93b73d-13c7-4c70-a621-6c4b0991a4cc"  // ← 空でないこと
+    }
+  ]
+}
+```
+
 ## ライセンス
 
 このプロジェクトはMITライセンスの下で公開されています。

@@ -92,14 +92,19 @@ document.getElementById('signupForm')?.addEventListener('submit', async (e) => {
         window.location.href = '/'
       }, 1000)
     } else {
+      console.error('Signup error response:', data)
       if (statusDiv) {
-        statusDiv.innerHTML = `<p class="error">エラー: ${data.error}</p>`
+        let errorMsg = `エラー: ${data.error}`
+        if (data.details) {
+          errorMsg += `<br><small>${data.details}</small>`
+        }
+        statusDiv.innerHTML = `<p class="error">${errorMsg}</p>`
       }
     }
   } catch (error) {
     console.error('Signup error:', error)
     if (statusDiv) {
-      statusDiv.innerHTML = '<p class="error">登録に失敗しました</p>'
+      statusDiv.innerHTML = `<p class="error">登録に失敗しました: ${error.message || error}</p>`
     }
   }
 })
