@@ -12,7 +12,10 @@ export const renderer = jsxRenderer(({ children }) => {
         <script src="/static/ffmpeg-util.js"></script>
         <link href="/static/style.css" rel="stylesheet" />
       </head>
-      <body className="bg-gray-50 min-h-screen">{children}</body>
+      <body className="bg-gray-50 min-h-screen">
+        {children}
+        <script src="/static/auth.js"></script>
+      </body>
     </html>
   )
 })

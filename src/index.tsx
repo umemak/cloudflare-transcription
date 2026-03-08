@@ -1,11 +1,17 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
 import { renderer } from './renderer'
 
 type Bindings = {
   DB: D1Database
   AUDIO_BUCKET: R2Bucket
   AI: Ai
+}
+
+type Variables = {
+  userId?: number
+  userEmail?: string
 }
 
 // Base64エンコード関数
@@ -17,6 +23,22 @@ function base64Encode(buffer: ArrayBuffer): string {
     binary += String.fromCharCode(bytes[i])
   }
   return btoa(binary)
+}
+
+// パスワードハッシュ化（SHA-256）
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(password)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+// セッショントークン生成
+function generateSessionToken(): string {
+  const array = new Uint8Array(32)
+  crypto.getRandomValues(array)
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
 // タイムスタンプをVTT形式にフォーマット（HH:MM:SS.mmm）
@@ -43,21 +65,177 @@ function generateVTT(segments: any[]): string {
   return vtt
 }
 
-const app = new Hono<{ Bindings: Bindings }>()
+const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
 // Enable CORS for API routes
 app.use('/api/*', cors())
 
+// Auth middleware - check session for protected routes
+app.use('/api/transcribe', async (c, next) => {
+  const sessionToken = getCookie(c, 'session_token')
+  
+  if (!sessionToken) {
+    return c.json({ error: 'Unauthorized - Please login' }, 401)
+  }
+  
+  // Verify session token (stored as email:token format in cookie)
+  const [email] = sessionToken.split(':')
+  
+  // Get user from database
+  const user = await c.env.DB.prepare(`
+    SELECT id, email FROM users WHERE email = ?
+  `).bind(email).first() as { id: number; email: string } | null
+  
+  if (!user) {
+    return c.json({ error: 'Unauthorized - Invalid session' }, 401)
+  }
+  
+  // Set user info in context
+  c.set('userId', user.id)
+  c.set('userEmail', user.email)
+  
+  await next()
+})
+
+app.use('/api/transcriptions*', async (c, next) => {
+  const sessionToken = getCookie(c, 'session_token')
+  
+  if (!sessionToken) {
+    return c.json({ error: 'Unauthorized - Please login' }, 401)
+  }
+  
+  const [email] = sessionToken.split(':')
+  
+  const user = await c.env.DB.prepare(`
+    SELECT id, email FROM users WHERE email = ?
+  `).bind(email).first() as { id: number; email: string } | null
+  
+  if (!user) {
+    return c.json({ error: 'Unauthorized - Invalid session' }, 401)
+  }
+  
+  c.set('userId', user.id)
+  c.set('userEmail', user.email)
+  
+  await next()
+})
+
+app.use('/api/audio/*', async (c, next) => {
+  const sessionToken = getCookie(c, 'session_token')
+  
+  if (!sessionToken) {
+    return c.json({ error: 'Unauthorized - Please login' }, 401)
+  }
+  
+  const [email] = sessionToken.split(':')
+  
+  const user = await c.env.DB.prepare(`
+    SELECT id, email FROM users WHERE email = ?
+  `).bind(email).first() as { id: number; email: string } | null
+  
+  if (!user) {
+    return c.json({ error: 'Unauthorized - Invalid session' }, 401)
+  }
+  
+  c.set('userId', user.id)
+  c.set('userEmail', user.email)
+  
+  await next()
+})
+
 // Frontend renderer
 app.use(renderer)
 
-// Home page
-app.get('/', (c) => {
+// Login page
+app.get('/login', (c) => {
+  return c.render(
+    <>
+      <div className="auth-container">
+        <div className="auth-box">
+          <h1>🎙️ ログイン</h1>
+          <form id="loginForm" className="auth-form">
+            <div className="form-group">
+              <label htmlFor="loginEmail">メールアドレス</label>
+              <input type="email" id="loginEmail" required />
+            </div>
+            <div className="form-group">
+              <label htmlFor="loginPassword">パスワード</label>
+              <input type="password" id="loginPassword" required />
+            </div>
+            <button type="submit" className="auth-btn">ログイン</button>
+          </form>
+          <div id="loginStatus"></div>
+          <p className="auth-link">
+            アカウントをお持ちでない方は <a href="/signup">こちら</a>
+          </p>
+        </div>
+      </div>
+    </>
+  )
+})
+
+// Signup page
+app.get('/signup', (c) => {
+  return c.render(
+    <>
+      <div className="auth-container">
+        <div className="auth-box">
+          <h1>🎙️ 新規登録</h1>
+          <form id="signupForm" className="auth-form">
+            <div className="form-group">
+              <label htmlFor="signupEmail">メールアドレス</label>
+              <input type="email" id="signupEmail" required />
+            </div>
+            <div className="form-group">
+              <label htmlFor="signupPassword">パスワード</label>
+              <input type="password" id="signupPassword" required minLength="8" />
+            </div>
+            <div className="form-group">
+              <label htmlFor="signupPasswordConfirm">パスワード（確認）</label>
+              <input type="password" id="signupPasswordConfirm" required minLength="8" />
+            </div>
+            <button type="submit" className="auth-btn">登録</button>
+          </form>
+          <div id="signupStatus"></div>
+          <p className="auth-link">
+            既にアカウントをお持ちの方は <a href="/login">こちら</a>
+          </p>
+        </div>
+      </div>
+    </>
+  )
+})
+
+// Home page (protected)
+app.get('/', async (c) => {
+  const sessionToken = getCookie(c, 'session_token')
+  
+  // Redirect to login if not authenticated
+  if (!sessionToken) {
+    return c.redirect('/login')
+  }
+  
+  const [email] = sessionToken.split(':')
+  const user = await c.env.DB.prepare(`
+    SELECT id, email FROM users WHERE email = ?
+  `).bind(email).first() as { id: number; email: string } | null
+  
+  if (!user) {
+    return c.redirect('/login')
+  }
   return c.render(
     <>
       <div className="container">
-        <h1>🎙️ 音声文字起こしアプリ</h1>
-        <p>音声ファイルをアップロードして、AIで自動文字起こしを行います</p>
+        <div className="header-bar">
+          <div>
+            <h1>🎙️ 音声文字起こしアプリ</h1>
+            <p>音声ファイルをアップロードして、AIで自動文字起こしを行います</p>
+          </div>
+          <div className="user-info">
+            <span className="user-email">{user.email}</span>
+            <button id="logoutBtn" className="logout-btn">ログアウト</button>
+          </div>
+        </div>
         
         <div className="upload-section">
           <h2>音声ファイルをアップロード</h2>
@@ -88,6 +266,110 @@ app.get('/', (c) => {
       <script src="/static/app.js"></script>
     </>
   )
+})
+
+// API: Signup
+app.post('/api/signup', async (c) => {
+  try {
+    const formData = await c.req.formData()
+    const email = formData.get('email') as string
+    const password = formData.get('password') as string
+    
+    if (!email || !password) {
+      return c.json({ error: 'Email and password are required' }, 400)
+    }
+    
+    if (password.length < 8) {
+      return c.json({ error: 'Password must be at least 8 characters' }, 400)
+    }
+    
+    // Check if user already exists
+    const existingUser = await c.env.DB.prepare(`
+      SELECT id FROM users WHERE email = ?
+    `).bind(email).first()
+    
+    if (existingUser) {
+      return c.json({ error: 'User already exists' }, 400)
+    }
+    
+    // Hash password
+    const passwordHash = await hashPassword(password)
+    
+    // Create user
+    await c.env.DB.prepare(`
+      INSERT INTO users (email, password_hash) VALUES (?, ?)
+    `).bind(email, passwordHash).run()
+    
+    // Generate session token
+    const sessionToken = `${email}:${generateSessionToken()}`
+    
+    // Set cookie
+    setCookie(c, 'session_token', sessionToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'Lax',
+      maxAge: 60 * 60 * 24 * 30 // 30 days
+    })
+    
+    return c.json({ success: true, email })
+  } catch (error) {
+    console.error('Signup error:', error)
+    return c.json({
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, 500)
+  }
+})
+
+// API: Login
+app.post('/api/login', async (c) => {
+  try {
+    const formData = await c.req.formData()
+    const email = formData.get('email') as string
+    const password = formData.get('password') as string
+    
+    if (!email || !password) {
+      return c.json({ error: 'Email and password are required' }, 400)
+    }
+    
+    // Get user
+    const user = await c.env.DB.prepare(`
+      SELECT id, email, password_hash FROM users WHERE email = ?
+    `).bind(email).first() as { id: number; email: string; password_hash: string } | null
+    
+    if (!user) {
+      return c.json({ error: 'Invalid email or password' }, 401)
+    }
+    
+    // Verify password
+    const passwordHash = await hashPassword(password)
+    if (passwordHash !== user.password_hash) {
+      return c.json({ error: 'Invalid email or password' }, 401)
+    }
+    
+    // Generate session token
+    const sessionToken = `${email}:${generateSessionToken()}`
+    
+    // Set cookie
+    setCookie(c, 'session_token', sessionToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'Lax',
+      maxAge: 60 * 60 * 24 * 30 // 30 days
+    })
+    
+    return c.json({ success: true, email })
+  } catch (error) {
+    console.error('Login error:', error)
+    return c.json({
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, 500)
+  }
+})
+
+// API: Logout
+app.post('/api/logout', (c) => {
+  deleteCookie(c, 'session_token')
+  return c.json({ success: true })
 })
 
 // API: Upload audio and transcribe
@@ -140,12 +422,15 @@ app.post('/api/transcribe', async (c) => {
       }
     })
 
+    // Get user ID from context
+    const userId = c.get('userId')
+    
     // Insert record into D1
     const initialStatus = isChunked ? 'processing' : 'processing'
     const result = await c.env.DB.prepare(`
-      INSERT INTO transcriptions (audio_file_key, audio_file_name, audio_file_size, status)
-      VALUES (?, ?, ?, ?)
-    `).bind(fileKey, audioFile.name, audioFile.size, initialStatus).run()
+      INSERT INTO transcriptions (audio_file_key, audio_file_name, audio_file_size, status, user_id)
+      VALUES (?, ?, ?, ?, ?)
+    `).bind(fileKey, audioFile.name, audioFile.size, initialStatus, userId).run()
 
     const transcriptionId = result.meta.last_row_id
 
@@ -342,12 +627,15 @@ app.post('/api/transcribe', async (c) => {
 // API: Get all transcriptions
 app.get('/api/transcriptions', async (c) => {
   try {
+    const userId = c.get('userId')
+    
     const result = await c.env.DB.prepare(`
       SELECT id, audio_file_key, audio_file_name, audio_file_size, transcript_text, vtt_text, status, error_message, created_at, updated_at
       FROM transcriptions
+      WHERE user_id = ?
       ORDER BY created_at DESC
       LIMIT 50
-    `).all()
+    `).bind(userId).all()
 
     return c.json({ transcriptions: result.results })
   } catch (error) {
@@ -362,11 +650,13 @@ app.get('/api/transcriptions', async (c) => {
 app.get('/api/transcriptions/:id', async (c) => {
   try {
     const id = c.req.param('id')
+    const userId = c.get('userId')
+    
     const result = await c.env.DB.prepare(`
       SELECT id, audio_file_key, audio_file_name, audio_file_size, transcript_text, vtt_text, status, error_message, created_at, updated_at
       FROM transcriptions
-      WHERE id = ?
-    `).bind(id).first()
+      WHERE id = ? AND user_id = ?
+    `).bind(id, userId).first()
 
     if (!result) {
       return c.json({ error: 'Transcription not found' }, 404)
@@ -385,11 +675,12 @@ app.get('/api/transcriptions/:id', async (c) => {
 app.get('/api/audio/:id', async (c) => {
   try {
     const id = c.req.param('id')
+    const userId = c.get('userId')
     
-    // Get audio file key from database
+    // Get audio file key from database (with user check)
     const transcription = await c.env.DB.prepare(`
-      SELECT audio_file_key FROM transcriptions WHERE id = ?
-    `).bind(id).first() as { audio_file_key: string } | null
+      SELECT audio_file_key FROM transcriptions WHERE id = ? AND user_id = ?
+    `).bind(id, userId).first() as { audio_file_key: string } | null
     
     if (!transcription) {
       return c.json({ error: 'Transcription not found' }, 404)
@@ -423,6 +714,7 @@ app.get('/api/audio/:id', async (c) => {
 app.post('/api/transcriptions/:id/update', async (c) => {
   try {
     const id = c.req.param('id')
+    const userId = c.get('userId')
     const formData = await c.req.formData()
     const transcript = formData.get('transcript') as string
     const segmentsJson = formData.get('segments') as string
@@ -445,13 +737,13 @@ app.post('/api/transcriptions/:id/update', async (c) => {
       }
     }
     
-    // Update the transcription record
+    // Update the transcription record (with user check)
     try {
       await c.env.DB.prepare(`
         UPDATE transcriptions 
         SET transcript_text = ?, vtt_text = ?, status = 'completed', updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `).bind(transcript, vttText, id).run()
+        WHERE id = ? AND user_id = ?
+      `).bind(transcript, vttText, id, userId).run()
       console.log('Database updated with chunked VTT')
     } catch (dbError) {
       console.error('Database update error:', dbError)
@@ -459,8 +751,8 @@ app.post('/api/transcriptions/:id/update', async (c) => {
       await c.env.DB.prepare(`
         UPDATE transcriptions 
         SET transcript_text = ?, status = 'completed', updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `).bind(transcript, id).run()
+        WHERE id = ? AND user_id = ?
+      `).bind(transcript, id, userId).run()
     }
     
     return c.json({ success: true })
@@ -476,6 +768,7 @@ app.post('/api/transcriptions/:id/update', async (c) => {
 app.post('/api/transcriptions/:id/vtt', async (c) => {
   try {
     const id = c.req.param('id')
+    const userId = c.get('userId')
     const formData = await c.req.formData()
     const vttText = formData.get('vtt_text') as string
     
@@ -483,12 +776,12 @@ app.post('/api/transcriptions/:id/vtt', async (c) => {
       return c.json({ error: 'No VTT text provided' }, 400)
     }
     
-    // Update only the VTT text
+    // Update only the VTT text (with user check)
     await c.env.DB.prepare(`
       UPDATE transcriptions 
       SET vtt_text = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).bind(vttText, id).run()
+      WHERE id = ? AND user_id = ?
+    `).bind(vttText, id, userId).run()
     
     return c.json({ success: true })
   } catch (error) {
@@ -503,21 +796,22 @@ app.post('/api/transcriptions/:id/vtt', async (c) => {
 app.delete('/api/transcriptions/:id', async (c) => {
   try {
     const id = c.req.param('id')
+    const userId = c.get('userId')
     
-    // Get audio file key before deleting
+    // Get audio file key before deleting (with user check)
     const transcription = await c.env.DB.prepare(`
-      SELECT audio_file_key FROM transcriptions WHERE id = ?
-    `).bind(id).first() as { audio_file_key: string } | null
+      SELECT audio_file_key FROM transcriptions WHERE id = ? AND user_id = ?
+    `).bind(id, userId).first() as { audio_file_key: string } | null
 
     if (transcription) {
       // Delete from R2
       await c.env.AUDIO_BUCKET.delete(transcription.audio_file_key)
     }
 
-    // Delete from D1
+    // Delete from D1 (with user check)
     await c.env.DB.prepare(`
-      DELETE FROM transcriptions WHERE id = ?
-    `).bind(id).run()
+      DELETE FROM transcriptions WHERE id = ? AND user_id = ?
+    `).bind(id, userId).run()
 
     return c.json({ success: true })
   } catch (error) {
