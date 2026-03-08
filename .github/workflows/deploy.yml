@@ -29,6 +29,25 @@ jobs:
       - name: Build
         run: npm run build
       
+      - name: Check if D1 database is configured
+        id: check_d1
+        run: |
+          if grep -q '"database_id": ""' wrangler.jsonc; then
+            echo "D1 database not configured, skipping migrations"
+            echo "skip_migration=true" >> $GITHUB_OUTPUT
+          else
+            echo "D1 database configured, will run migrations"
+            echo "skip_migration=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Run D1 Migrations
+        if: steps.check_d1.outputs.skip_migration == 'false'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 migrations apply cloudflare-transcription-db --remote
+      
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
