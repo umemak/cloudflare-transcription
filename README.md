@@ -380,6 +380,59 @@ Cloudflare APIキーを設定すると、ローカル開発環境でも完全な
 
 このプロジェクトは、`main`ブランチに push すると自動的に Cloudflare Pages にデプロイされます。
 
+### 前提条件
+
+GitHub Actionsで自動デプロイを行う前に、以下のCloudflareリソースを作成する必要があります。
+
+#### 本番D1データベースの作成
+
+ローカル環境でCloudflare APIトークンを設定してから実行してください。
+
+```bash
+# D1データベースを作成
+npx wrangler d1 create webapp-production
+
+# 出力例:
+# ✅ Successfully created DB 'webapp-production' in region APAC
+# 
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "webapp-production"
+# database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+```
+
+**重要**: 出力された `database_id` をコピーして、`wrangler.jsonc` ファイルの `database_id` フィールドに貼り付けてください。
+
+```jsonc
+{
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "webapp-production",
+      "database_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  // ← ここに貼り付け
+    }
+  ]
+}
+```
+
+変更後、コミットしてpushしてください：
+
+```bash
+git add wrangler.jsonc
+git commit -m "Configure production D1 database ID"
+git push origin main
+```
+
+#### 本番R2バケットの作成
+
+```bash
+# R2バケットを作成
+npx wrangler r2 bucket create webapp-audio-bucket
+
+# 成功メッセージが表示されます
+# ✅ Created bucket webapp-audio-bucket
+```
+
 ### セットアップ手順
 
 #### 1. Cloudflare APIトークンの取得
@@ -450,7 +503,8 @@ git push origin main
   3. 依存関係のインストール (`npm ci`)
   4. FFmpeg.wasmファイルのダウンロード
   5. プロジェクトのビルド (`npm run build`)
-  6. Cloudflare Pagesへのデプロイ (`wrangler pages deploy`)
+  6. **D1データベースマイグレーション** (`wrangler d1 migrations apply webapp-production --remote`)
+  7. Cloudflare Pagesへのデプロイ (`wrangler pages deploy`)
 
 ## 機能
 
