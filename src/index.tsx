@@ -1,13 +1,13 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
-import { serveStatic } from 'hono/cloudflare-workers'
 import { renderer } from './renderer'
 
 type Bindings = {
   DB: D1Database
   AUDIO_BUCKET: R2Bucket
   AI: Ai
+  ASSETS: Fetcher
 }
 
 type Variables = {
@@ -144,8 +144,22 @@ app.use('/api/audio/*', async (c, next) => {
   await next()
 })
 
-// Serve static files
-app.use('/static/*', serveStatic({ root: './' }))
+// Serve static files using assets binding
+app.use('/static/*', async (c, next) => {
+  const url = new URL(c.req.url)
+  const path = url.pathname.replace('/static/', '')
+  
+  try {
+    const assetResponse = await c.env.ASSETS.fetch(new Request(`https://placeholder/${path}`))
+    if (assetResponse.status === 200) {
+      return assetResponse
+    }
+  } catch (e) {
+    console.error('Asset fetch error:', e)
+  }
+  
+  return next()
+})
 
 // Frontend renderer
 app.use(renderer)

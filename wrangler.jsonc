@@ -6,6 +6,10 @@
 	"compatibility_flags": [
 		"nodejs_compat"
 	],
+	"assets": {
+		"directory": "dist/static",
+		"binding": "ASSETS"
+	},
 	"r2_buckets": [
 		{
 			"binding": "AUDIO_BUCKET",
