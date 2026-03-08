@@ -754,6 +754,21 @@ npx wrangler d1 migrations list cloudflare-transcription-db --remote
 5. エラーメッセージを確認（`Signup error response:` のログを探す）
 6. エラーに `Users table may not exist` が含まれている場合は、マイグレーションが未実行
 
+#### 5. 手動でマイグレーションを実行（Cloudflare APIトークン設定済みの場合）
+```bash
+# ローカル環境から本番D1にマイグレーションを適用
+npx wrangler d1 migrations apply cloudflare-transcription-db --remote
+
+# マイグレーション状態を確認
+npx wrangler d1 migrations list cloudflare-transcription-db --remote
+
+# データベースの内容を確認（usersテーブルが存在するか）
+npx wrangler d1 execute cloudflare-transcription-db --remote --command="SELECT name FROM sqlite_master WHERE type='table'"
+
+# transcriptionsテーブルにuser_idカラムが存在するか確認
+npx wrangler d1 execute cloudflare-transcription-db --remote --command="PRAGMA table_info(transcriptions)"
+```
+
 #### 5. データベースIDの確認
 `wrangler.jsonc`で正しいdatabase_idが設定されているか確認してください：
 ```jsonc

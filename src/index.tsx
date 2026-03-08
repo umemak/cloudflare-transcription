@@ -673,13 +673,24 @@ app.get('/api/transcriptions', async (c) => {
       return c.json({ error: 'User not authenticated properly' }, 401)
     }
     
-    const result = await c.env.DB.prepare(`
-      SELECT id, audio_file_key, audio_file_name, audio_file_size, transcript_text, vtt_text, status, error_message, created_at, updated_at
-      FROM transcriptions
-      WHERE user_id = ?
-      ORDER BY created_at DESC
-      LIMIT 50
-    `).bind(userId).all()
+    // Check if user_id column exists by trying to select it
+    let result
+    try {
+      result = await c.env.DB.prepare(`
+        SELECT id, audio_file_key, audio_file_name, audio_file_size, transcript_text, vtt_text, status, error_message, created_at, updated_at
+        FROM transcriptions
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+        LIMIT 50
+      `).bind(userId).all()
+    } catch (dbError) {
+      // If user_id column doesn't exist, return empty array
+      console.error('Database query failed, user_id column might not exist:', dbError)
+      return c.json({ 
+        transcriptions: [],
+        warning: 'Database migration may not have been applied. Please run migrations.'
+      })
+    }
 
     console.log('Transcriptions fetched:', result.results?.length || 0)
     return c.json({ transcriptions: result.results || [] })
