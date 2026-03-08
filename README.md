@@ -53,15 +53,16 @@ npm run dev:ai
 
 ## 現在完了している機能
 
-✅ 音声ファイルのアップロード機能  
-✅ Cloudflare D1データベースでの文字起こし履歴管理  
-✅ Cloudflare R2ストレージへの音声ファイル保存  
-✅ Cloudflare AI（Whisper）による文字起こし機能  
-✅ 文字起こし履歴の表示（日時、ファイル名、サイズ、ステータス）  
-✅ 文字起こし結果の削除機能  
-✅ レスポンシブなUIデザイン（Tailwind CSS使用）  
-✅ ローカル環境でのテスト完了（D1 + R2）  
-⚠️ AIを含む完全なテストにはCloudflare APIキーが必要
+✅ **ユーザー認証**: メールアドレス＋パスワードによる登録・ログイン・ログアウト  
+✅ **音声ファイルのアップロード**: ブラウザ上で1MB以上のファイルを自動分割（FFmpeg.wasm）  
+✅ **文字起こし**: Cloudflare AI（Whisper Large V3 Turbo）による高精度な文字起こし  
+✅ **VTT形式サポート**: タイムスタンプ付き字幕形式での編集・ダウンロード  
+✅ **音声再生**: VTTタイムスタンプクリックで該当箇所から再生  
+✅ **履歴管理**: Cloudflare D1データベースでの文字起こし履歴管理（ユーザーごと）  
+✅ **ストレージ**: Cloudflare R2への音声ファイル保存  
+✅ **レスポンシブUI**: Tailwind CSSによるモダンなデザイン  
+✅ **本番環境デプロイ**: Cloudflare Workersで稼働中  
+✅ **CI/CD**: GitHub Actionsによる自動デプロイ
 
 ## URLとエンドポイント
 
@@ -364,17 +365,19 @@ Cloudflare APIキーを設定すると、ローカル開発環境でも完全な
 
 ## デプロイ情報
 
-- **プラットフォーム**: Cloudflare Pages / Workers
-- **ステータス**: ✅ GitHub Actions自動デプロイ設定済み
+- **プラットフォーム**: Cloudflare Workers
+- **本番URL**: https://cloudflare-transcription.umemak.workers.dev/
+- **ステータス**: ✅ 本番稼働中（GitHub Actions自動デプロイ）
 - **技術スタック**:
   - バックエンド: Hono v4 (Cloudflare Workers)
-  - フロントエンド: HTML + JavaScript + Tailwind CSS
+  - フロントエンド: HTML + JavaScript + Tailwind CSS（インライン化）
+  - 認証: メールアドレス＋パスワード（SHA-256ハッシュ化、セッションCookie）
   - データベース: Cloudflare D1 (SQLite)
   - ストレージ: Cloudflare R2
-  - AI: Cloudflare AI (Whisper)
+  - AI: Cloudflare AI (Whisper Large V3 Turbo)
   - 言語: TypeScript
 - **CI/CD**: GitHub Actions（mainブランチへのpush時に自動デプロイ）
-- **最終更新**: 2026-03-07
+- **最終更新**: 2026-03-08
 
 ## GitHub Actions自動デプロイ
 
