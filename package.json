@@ -13,15 +13,15 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "npm run build && wrangler pages dev dist --d1=webapp-production --r2=webapp-audio-bucket --local --port 3000",
-    "dev:ai": "npm run build && wrangler pages dev dist --d1=webapp-production --r2=webapp-audio-bucket --ai=AI --local --port 3000",
+    "dev": "npm run build && wrangler pages dev dist --d1=cloudflare-transcription-db --r2=webapp-audio-bucket --local --port 3000",
+    "dev:ai": "npm run build && wrangler pages dev dist --d1=cloudflare-transcription-db --r2=webapp-audio-bucket --ai=AI --local --port 3000",
     "build": "vite build",
     "preview": "wrangler pages dev dist",
     "deploy": "npm run build && wrangler pages deploy dist",
     "deploy:prod": "npm run build && wrangler pages deploy dist --project-name webapp",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
-    "db:migrate:local": "wrangler d1 migrations apply webapp-production --local",
-    "db:migrate:prod": "wrangler d1 migrations apply webapp-production",
+    "db:migrate:local": "wrangler d1 migrations apply cloudflare-transcription-db --local",
+    "db:migrate:prod": "wrangler d1 migrations apply cloudflare-transcription-db",
     "clean-port": "echo 'Port cleaning not available on Windows'",
     "setup:ffmpeg": "bash scripts/setup-ffmpeg.sh",
     "postinstall": "npm run setup:ffmpeg"

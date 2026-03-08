@@ -15,7 +15,7 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "webapp-production",
+      "database_name": "cloudflare-transcription-db",
       "database_id": ""
     }
   ],
