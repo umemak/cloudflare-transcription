@@ -7,7 +7,6 @@ type Bindings = {
   DB: D1Database
   AUDIO_BUCKET: R2Bucket
   AI: Ai
-  ASSETS: Fetcher
 }
 
 type Variables = {
@@ -144,22 +143,7 @@ app.use('/api/audio/*', async (c, next) => {
   await next()
 })
 
-// Serve static files using assets binding
-app.use('/static/*', async (c, next) => {
-  const url = new URL(c.req.url)
-  const path = url.pathname.replace('/static/', '')
-  
-  try {
-    const assetResponse = await c.env.ASSETS.fetch(new Request(`https://placeholder/${path}`))
-    if (assetResponse.status === 200) {
-      return assetResponse
-    }
-  } catch (e) {
-    console.error('Asset fetch error:', e)
-  }
-  
-  return next()
-})
+// Static files are served automatically by Cloudflare Workers assets
 
 // Frontend renderer
 app.use(renderer)

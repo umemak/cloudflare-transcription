@@ -7,8 +7,7 @@
 		"nodejs_compat"
 	],
 	"assets": {
-		"directory": "dist/static",
-		"binding": "ASSETS"
+		"directory": "./public/static"
 	},
 	"r2_buckets": [
 		{
