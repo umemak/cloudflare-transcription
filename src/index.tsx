@@ -7,8 +7,17 @@ import { appJs } from './static/app'
 // Generate summary using AI
 async function generateSummary(transcript: string, ai: Ai): Promise<string> {
   try {
-    const response = await ai.run('@cf/meta/llama-3.1-8b-instruct', {
-      prompt: `以下の文字起こしテキストを日本語で簡潔に要約してください。主要なポイントを3-5個の箇条書きでまとめてください。\n\n${transcript}`,
+    const response = await ai.run('@cf/openai/gpt-oss-120b', {
+      messages: [
+        {
+          role: 'system',
+          content: 'あなたは優秀な要約アシスタントです。提供されたテキストを簡潔に要約し、主要なポイントを3-5個の箇条書きでまとめてください。'
+        },
+        {
+          role: 'user',
+          content: transcript
+        }
+      ],
       max_tokens: 500
     }) as any
     
