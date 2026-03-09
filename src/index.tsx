@@ -16,15 +16,38 @@ async function generateSummary(transcript: string, ai: Ai): Promise<string> {
     }) as any
     
     console.log('[Summary] Raw AI response:', JSON.stringify(response, null, 2))
+    console.log('[Summary] Response type:', typeof response)
+    console.log('[Summary] Response keys:', Object.keys(response || {}))
     
     // Responses API のレスポンス形式に対応
     let summaryText = ''
-    if (response.response) {
-      summaryText = response.response
+    
+    // 配列の場合（複数のcontent部分がある可能性）
+    if (Array.isArray(response)) {
+      console.log('[Summary] Response is array, length:', response.length)
+      // 配列の各要素からテキストを抽出
+      summaryText = response.map(item => {
+        if (typeof item === 'string') return item
+        if (item.text) return item.text
+        if (item.content) return item.content
+        return JSON.stringify(item)
+      }).join('\n')
+    }
+    // オブジェクトの場合
+    else if (response.response) {
+      summaryText = Array.isArray(response.response) 
+        ? response.response.map((item: any) => item.text || item.content || String(item)).join('\n')
+        : String(response.response)
     } else if (response.output) {
-      summaryText = response.output
+      summaryText = Array.isArray(response.output)
+        ? response.output.map((item: any) => item.text || item.content || String(item)).join('\n')
+        : String(response.output)
     } else if (response.text) {
       summaryText = response.text
+    } else if (response.content) {
+      summaryText = Array.isArray(response.content)
+        ? response.content.map((item: any) => item.text || item.content || String(item)).join('\n')
+        : String(response.content)
     } else if (response.choices && response.choices[0]?.message?.content) {
       summaryText = response.choices[0].message.content
     } else if (typeof response === 'string') {
@@ -34,7 +57,7 @@ async function generateSummary(transcript: string, ai: Ai): Promise<string> {
       return '要約を生成できませんでした（レスポンス形式が不明）。'
     }
     
-    console.log('[Summary] Generated summary:', summaryText)
+    console.log('[Summary] Extracted summary text:', summaryText)
     return summaryText || '要約を生成できませんでした。'
   } catch (error) {
     console.error('[Summary] Error:', error)
