@@ -10,26 +10,19 @@ async function generateSummary(transcript: string, ai: Ai): Promise<string> {
     console.log('[Summary] Starting summary generation with gpt-oss-120b')
     console.log('[Summary] Transcript length:', transcript.length)
     
+    // gpt-oss-120bは Responses API形式を使用
     const response = await ai.run('@cf/openai/gpt-oss-120b', {
-      messages: [
-        {
-          role: 'system',
-          content: 'あなたは優秀な要約アシスタントです。提供されたテキストを簡潔に要約し、主要なポイントを3-5個の箇条書きでまとめてください。'
-        },
-        {
-          role: 'user',
-          content: transcript
-        }
-      ],
-      max_tokens: 500
+      input: `以下の文字起こしテキストを読んで、3〜5個の箇条書きで簡潔に要約してください。\n\n${transcript}`
     }) as any
     
     console.log('[Summary] Raw AI response:', JSON.stringify(response, null, 2))
     
-    // レスポンス形式の確認と対応
+    // Responses API のレスポンス形式に対応
     let summaryText = ''
     if (response.response) {
       summaryText = response.response
+    } else if (response.output) {
+      summaryText = response.output
     } else if (response.text) {
       summaryText = response.text
     } else if (response.choices && response.choices[0]?.message?.content) {
