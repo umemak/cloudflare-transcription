@@ -7,6 +7,9 @@ import { appJs } from './static/app'
 // Generate summary using AI
 async function generateSummary(transcript: string, ai: Ai): Promise<string> {
   try {
+    console.log('[Summary] Starting summary generation with gpt-oss-120b')
+    console.log('[Summary] Transcript length:', transcript.length)
+    
     const response = await ai.run('@cf/openai/gpt-oss-120b', {
       messages: [
         {
@@ -21,10 +24,29 @@ async function generateSummary(transcript: string, ai: Ai): Promise<string> {
       max_tokens: 500
     }) as any
     
-    return response.response || '要約を生成できませんでした。'
+    console.log('[Summary] Raw AI response:', JSON.stringify(response, null, 2))
+    
+    // レスポンス形式の確認と対応
+    let summaryText = ''
+    if (response.response) {
+      summaryText = response.response
+    } else if (response.text) {
+      summaryText = response.text
+    } else if (response.choices && response.choices[0]?.message?.content) {
+      summaryText = response.choices[0].message.content
+    } else if (typeof response === 'string') {
+      summaryText = response
+    } else {
+      console.error('[Summary] Unknown response format:', response)
+      return '要約を生成できませんでした（レスポンス形式が不明）。'
+    }
+    
+    console.log('[Summary] Generated summary:', summaryText)
+    return summaryText || '要約を生成できませんでした。'
   } catch (error) {
-    console.error('Summary generation error:', error)
-    return '要約の生成中にエラーが発生しました。'
+    console.error('[Summary] Error:', error)
+    console.error('[Summary] Error details:', JSON.stringify(error, null, 2))
+    return `要約の生成中にエラーが発生しました: ${error instanceof Error ? error.message : String(error)}`
   }
 }
 
