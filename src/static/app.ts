@@ -425,15 +425,26 @@ document.getElementById('uploadBtn')?.addEventListener('click', async () => {
 
       if (response.ok) {
         if (statusDiv) {
-          statusDiv.innerHTML = \`
+          let html = \`
             <div class="success">
-              <p>✅ 文字起こし完了！</p>
+              <p>✅ 文字起こし完了！</p>\`
+          
+          if (data.summary) {
+            html += \`
+              <div class="summary-box" style="background: #e8f5e9; padding: 1rem; margin: 1rem 0; border-radius: 8px; border-left: 4px solid #4caf50;">
+                <h3>📝 要約:</h3>
+                <p style="white-space: pre-wrap;">\${data.summary}</p>
+              </div>\`
+          }
+          
+          html += \`
               <div class="transcript-box">
                 <h3>文字起こし結果:</h3>
                 <p>\${data.transcript || '(テキストなし)'}</p>
               </div>
             </div>
           \`
+          statusDiv.innerHTML = html
         }
         loadTranscriptions()
         fileInput.value = ''
@@ -483,6 +494,12 @@ async function loadTranscriptions() {
               <button class="delete-btn" onclick="deleteTranscription(\${t.id})">削除</button>
             </div>
           </div>
+          \${t.summary_text ? \`
+            <div class="summary-box" style="background: #e8f5e9; padding: 1rem; margin: 1rem 0; border-radius: 8px; border-left: 4px solid #4caf50;">
+              <h4>📝 要約:</h4>
+              <p style="white-space: pre-wrap;">\${t.summary_text}</p>
+            </div>
+          \` : ''}
           \${t.vtt_text ? \`
             <div class="audio-player-container">
               <h4>音声プレーヤー:</h4>

@@ -4,6 +4,21 @@ import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
 import { renderer } from './renderer'
 import { appJs } from './static/app'
 
+// Generate summary using AI
+async function generateSummary(transcript: string, ai: Ai): Promise<string> {
+  try {
+    const response = await ai.run('@cf/meta/llama-3.1-8b-instruct', {
+      prompt: `以下の文字起こしテキストを日本語で簡潔に要約してください。主要なポイントを3-5個の箇条書きでまとめてください。\n\n${transcript}`,
+      max_tokens: 500
+    }) as any
+    
+    return response.response || '要約を生成できませんでした。'
+  } catch (error) {
+    console.error('Summary generation error:', error)
+    return '要約の生成中にエラーが発生しました。'
+  }
+}
+
 type Bindings = {
   DB: D1Database
   AUDIO_BUCKET: R2Bucket
@@ -650,11 +665,30 @@ app.post('/api/transcribe', async (c) => {
           console.log('Database updated without VTT (column may not exist)')
         }
         
+        // Generate summary
+        console.log('Generating summary...')
+        const summary = await generateSummary(transcriptText, c.env.AI)
+        console.log('Summary generated, length:', summary.length)
+        
+        // Update with summary
+        try {
+          await c.env.DB.prepare(`
+            UPDATE transcriptions 
+            SET summary_text = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+          `).bind(summary, transcriptionId).run()
+          console.log('Database updated with summary')
+        } catch (summaryError) {
+          console.error('Summary update error:', summaryError)
+          // If summary column doesn't exist, continue without error
+        }
+        
         return c.json({
           id: transcriptionId,
           status: 'completed',
           transcript: transcriptText,
-          vtt: vttText
+          vtt: vttText,
+          summary: summary
         })
       }
 
@@ -674,11 +708,30 @@ app.post('/api/transcribe', async (c) => {
           WHERE id = ?
         `).bind(transcriptText, transcriptionId).run()
       }
+      
+      // Generate summary
+      console.log('Generating summary for chunked transcription...')
+      const summary = await generateSummary(transcriptText, c.env.AI)
+      console.log('Summary generated, length:', summary.length)
+      
+      // Update with summary
+      try {
+        await c.env.DB.prepare(`
+          UPDATE transcriptions 
+          SET summary_text = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).bind(summary, transcriptionId).run()
+        console.log('Database updated with summary')
+      } catch (summaryError) {
+        console.error('Summary update error:', summaryError)
+        // If summary column doesn't exist, continue without error
+      }
 
       return c.json({
         id: transcriptionId,
         status: 'completed',
-        transcript: transcriptText
+        transcript: transcriptText,
+        summary: summary
       })
     } catch (aiError) {
       // Update with error status
@@ -719,7 +772,7 @@ app.get('/api/transcriptions', async (c) => {
     let result
     try {
       result = await c.env.DB.prepare(`
-        SELECT id, audio_file_key, audio_file_name, audio_file_size, transcript_text, vtt_text, status, error_message, created_at, updated_at
+        SELECT id, audio_file_key, audio_file_name, audio_file_size, transcript_text, vtt_text, summary_text, status, error_message, created_at, updated_at
         FROM transcriptions
         WHERE user_id = ?
         ORDER BY created_at DESC
@@ -753,7 +806,7 @@ app.get('/api/transcriptions/:id', async (c) => {
     const userId = c.get('userId')
     
     const result = await c.env.DB.prepare(`
-      SELECT id, audio_file_key, audio_file_name, audio_file_size, transcript_text, vtt_text, status, error_message, created_at, updated_at
+      SELECT id, audio_file_key, audio_file_name, audio_file_size, transcript_text, vtt_text, summary_text, status, error_message, created_at, updated_at
       FROM transcriptions
       WHERE id = ? AND user_id = ?
     `).bind(id, userId).first()
