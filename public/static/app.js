@@ -21,10 +21,10 @@ async function loadFFmpeg() {
     const isHTTPS = window.location.protocol === 'https:'
     
     if (isHTTPS) {
-      // 本番環境（HTTPS）: CDNから読み込み（workerPathも含める）
-      console.log('🌐 Loading FFmpeg from CDN (HTTPS environment)')
+      // 本番環境（HTTPS）: CDNからマルチスレッド版を読み込み
+      console.log('🌐 Loading FFmpeg Multi-Thread from CDN (HTTPS environment)')
       
-      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd'
+      const baseURL = 'https://unpkg.com/@ffmpeg/core-mt@0.12.6/dist/umd'
       
       // toBlobURLですべてのファイルをBlob化してCORS回避
       const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript')
@@ -37,7 +37,7 @@ async function loadFFmpeg() {
         workerURL
       })
       
-      console.log('✅ FFmpeg.wasm loaded from CDN')
+      console.log('✅ FFmpeg.wasm Multi-Thread loaded from CDN')
     } else {
       // 開発環境（HTTP）: ローカルファイルから読み込み
       console.log('💻 Loading FFmpeg from local server (HTTP environment)')
@@ -45,16 +45,13 @@ async function loadFFmpeg() {
       const baseURL = window.location.origin + '/static/ffmpeg'
       const coreURL = `${baseURL}/ffmpeg-core.js`
       const wasmURL = `${baseURL}/ffmpeg-core.wasm`
-      const workerURL = `${baseURL}/ffmpeg-core.worker.js`
       
       console.log('📦 Core:', coreURL)
       console.log('📦 WASM:', wasmURL)
-      console.log('📦 Worker:', workerURL)
       
       await ffmpegInstance.load({
         coreURL,
-        wasmURL,
-        workerURL
+        wasmURL
       })
       
       console.log('✅ FFmpeg.wasm loaded from local server')

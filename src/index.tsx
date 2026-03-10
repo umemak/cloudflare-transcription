@@ -133,6 +133,13 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 // Enable CORS for API routes
 app.use('/api/*', cors())
 
+// Add COOP and COEP headers for SharedArrayBuffer support (required for FFmpeg multi-thread)
+app.use('*', async (c, next) => {
+  await next()
+  c.header('Cross-Origin-Opener-Policy', 'same-origin')
+  c.header('Cross-Origin-Embedder-Policy', 'require-corp')
+})
+
 // Auth middleware - check session for protected routes
 app.use('/api/transcribe', async (c, next) => {
   const sessionToken = getCookie(c, 'session_token')
