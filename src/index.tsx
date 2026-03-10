@@ -133,17 +133,8 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 // Enable CORS for API routes
 app.use('/api/*', cors())
 
-// Add COOP and COEP headers ONLY for HTML pages (not for API/static resources)
-// This is required for SharedArrayBuffer support in FFmpeg multi-thread
-app.use('/', async (c, next) => {
-  await next()
-  // Only add headers for HTML responses
-  const contentType = c.res.headers.get('content-type')
-  if (contentType && contentType.includes('text/html')) {
-    c.header('Cross-Origin-Opener-Policy', 'same-origin')
-    c.header('Cross-Origin-Embedder-Policy', 'credentialless') // Use 'credentialless' to allow CDN resources
-  }
-})
+// Note: COOP/COEP headers removed - using FFmpeg single-thread mode
+// which doesn't require SharedArrayBuffer, avoiding cross-origin issues
 
 // Auth middleware - check session for protected routes
 app.use('/api/transcribe', async (c, next) => {
