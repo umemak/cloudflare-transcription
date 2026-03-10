@@ -2,12 +2,13 @@ export const appJs = `// FFmpeg.wasmインスタンス（グローバル）
 let ffmpegInstance = null
 let ffmpegLoaded = false
 
-// FFmpeg.wasmを初期化（ローカルサーバーから読み込み）
+// FFmpeg.wasmを初期化（CDNまたはローカルサーバーから読み込み）
 async function loadFFmpeg() {
   if (ffmpegLoaded) return ffmpegInstance
   
   try {
     const { FFmpeg } = FFmpegWASM
+    const { toBlobURL } = FFmpegUtil
     
     ffmpegInstance = new FFmpeg()
     
@@ -16,38 +17,44 @@ async function loadFFmpeg() {
       console.log('[FFmpeg]', message)
     })
     
-    // ローカルサーバーから直接読み込み（CORS回避）
-    const baseURL = window.location.origin + '/static/ffmpeg'
-    console.log('🔍 Trying to load FFmpeg from:', baseURL)
+    // HTTPS環境かどうかを確認
+    const isHTTPS = window.location.protocol === 'https:'
     
-    // オプション1: ローカルファイルがある場合
-    try {
+    if (isHTTPS) {
+      // 本番環境（HTTPS）: CDNから読み込み
+      console.log('🌐 Loading FFmpeg from CDN (HTTPS environment)')
+      
+      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd'
+      const coreURL = await toBlobURL(\`\${baseURL}/ffmpeg-core.js\`, 'text/javascript')
+      const wasmURL = await toBlobURL(\`\${baseURL}/ffmpeg-core.wasm\`, 'application/wasm')
+      
+      await ffmpegInstance.load({
+        coreURL,
+        wasmURL
+      })
+      
+      console.log('✅ FFmpeg.wasm loaded from CDN')
+    } else {
+      // 開発環境（HTTP）: ローカルファイルから読み込み
+      console.log('💻 Loading FFmpeg from local server (HTTP environment)')
+      
+      const baseURL = window.location.origin + '/static/ffmpeg'
       const coreURL = \`\${baseURL}/ffmpeg-core.js\`
       const wasmURL = \`\${baseURL}/ffmpeg-core.wasm\`
       
-      console.log('📦 Loading core from:', coreURL)
-      console.log('📦 Loading wasm from:', wasmURL)
+      console.log('📦 Core:', coreURL)
+      console.log('📦 WASM:', wasmURL)
       
-      // タイムアウト付きロード（30秒）
-      const loadPromise = ffmpegInstance.load({
-        coreURL: coreURL,
-        wasmURL: wasmURL
+      await ffmpegInstance.load({
+        coreURL,
+        wasmURL
       })
       
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('FFmpeg load timeout (30s)')), 30000)
-      )
-      
-      await Promise.race([loadPromise, timeoutPromise])
-      
       console.log('✅ FFmpeg.wasm loaded from local server')
-      ffmpegLoaded = true
-      return ffmpegInstance
-    } catch (localError) {
-      console.warn('⚠️ Local FFmpeg files failed:', localError.message)
-      console.log('🔄 Skipping CDN fallback (known CORS issue)')
-      throw localError
     }
+    
+    ffmpegLoaded = true
+    return ffmpegInstance
   } catch (error) {
     console.error('❌ Failed to load FFmpeg.wasm:', error)
     throw error
