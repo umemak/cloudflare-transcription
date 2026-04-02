@@ -8,8 +8,6 @@ const __dirname = path.dirname(__filename)
 const files = [
   { name: 'auth', ext: 'js', exportName: 'authJs' },
   { name: 'app', ext: 'js', exportName: 'appJs' },
-  { name: 'ffmpeg', ext: 'js', exportName: 'ffmpegJs' },
-  { name: 'ffmpeg-util', ext: 'js', exportName: 'ffmpegUtilJs' },
   { name: 'style', ext: 'css', exportName: 'styleCss' }
 ]
 
