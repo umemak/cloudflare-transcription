@@ -21,7 +21,8 @@
     "deploy": "npm run build && wrangler deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "db:migrate:local": "wrangler d1 migrations apply cloudflare-transcription-db --local",
-    "db:migrate:prod": "wrangler d1 migrations apply cloudflare-transcription-db"
+    "db:migrate:prod": "wrangler d1 migrations apply cloudflare-transcription-db",
+    "setup:ffmpeg": "echo 'FFmpeg is now handled by Cloudflare Container - skipping'"
   },
   "dependencies": {
     "@cloudflare/containers": "^0.1.1",
