@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [
     build({
       emptyOutDir: false,
-      external: [],
+      external: ['cloudflare:workers', '@cloudflare/containers'],
       outputDir: 'dist'
     }),
     devServer({

@@ -45,9 +45,5 @@ pids/
 *.tar.gz
 *.zip
 
-# FFmpeg.wasm files (large binary files)
-public/static/ffmpeg/*.wasm
-public/static/ffmpeg/*.js
-public/static/ffmpeg.js
-public/static/ffmpeg-util.js
-public/static/814.ffmpeg.js
+# Container dependencies (installed during docker build)
+container/node_modules/

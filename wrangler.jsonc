@@ -21,5 +21,29 @@
 	],
 	"ai": {
 		"binding": "AI"
-	}
+	},
+
+	// Cloudflare Containers - FFmpeg audio processing
+	"containers": [
+		{
+			"class_name": "TranscriptionContainer",
+			"image": "./container/Dockerfile",
+			"instance_type": "basic",
+			"max_instances": 3
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"class_name": "TranscriptionContainer",
+				"name": "TRANSCRIPTION_CONTAINER"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"new_sqlite_classes": ["TranscriptionContainer"],
+			"tag": "v1"
+		}
+	]
 }

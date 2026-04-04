@@ -1,0 +1,10 @@
+{
+  "name": "transcription-container",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "hono": "^4.12.5",
+    "@hono/node-server": "^1.13.0"
+  }
+}
